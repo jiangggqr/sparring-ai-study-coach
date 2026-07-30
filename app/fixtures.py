@@ -60,7 +60,17 @@ def fixture_plan(material: str) -> StudyPlan:
     pieces = _chunks(material)
     while len(pieces) < 3:
         pieces.append(material[:220])
-    names = [_name(piece, index) for index, piece in enumerate(pieces[:3])]
+    names: list[str] = []
+    seen_names: set[str] = set()
+    for index, piece in enumerate(pieces[:3]):
+        base_name = _name(piece, index)
+        name = base_name
+        suffix = index + 1
+        while name.casefold() in seen_names:
+            name = f"{base_name} {suffix}"
+            suffix += 1
+        names.append(name)
+        seen_names.add(name.casefold())
     concepts = [
         ConceptPlan(
             name=name,

@@ -33,7 +33,8 @@ ffmpeg -i demo_clean.mp4 \
   https://github.com/jiangggqr/sparring-ai-study-coach
 - Repository has no `.env`, API key, PDF, or personal learning material.
 - README setup works from a fresh Python environment.
-- Demo deployment health endpoint returns 200.
+- Public demo URL returns 200, and the PDF-to-practice flow passes in a fresh browser.
+- If a separate FastAPI host is submitted, its `/api/health` endpoint also returns 200.
 - Devpost description uses only claims supported by the submitted build.
 - Official limit checked again before upload; current official rule is no more than two
   minutes.

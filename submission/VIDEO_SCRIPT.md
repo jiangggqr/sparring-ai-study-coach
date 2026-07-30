@@ -79,12 +79,13 @@ Answer one reworded item before showing the result.
 
 ### 1:43-1:53 - Technical proof
 
-**Picture:** Brief split view: app, `/api/health`, source-anchor schema, and passing tests.
+**Picture:** Brief split view: the public GitHub Pages demo, the source-anchor schema,
+and passing tests.
 
 **Voice:**
 
-> FastAPI keeps the model key on the server. Structured outputs and source-anchor checks
-> keep every generated step inside my uploaded material.
+> The public demo reads my PDF locally. In the real-model build, FastAPI keeps the key on
+> the server, while structured outputs and source-anchor checks keep each step grounded.
 
 ### 1:53-1:57 - Close
 

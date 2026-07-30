@@ -123,7 +123,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if len(material) < cfg.material_min_chars:
             raise HTTPException(
                 400,
-                f"Paste at least {cfg.material_min_chars} characters of study material.",
+                "Provide at least one complete sentence "
+                f"({cfg.material_min_chars} characters) of study material.",
             )
         if len(material) > cfg.material_max_chars:
             raise HTTPException(

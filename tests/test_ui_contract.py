@@ -38,7 +38,7 @@ def test_recovery_and_offline_contract():
 
 def test_hosted_demo_keeps_files_local_and_uses_relative_assets():
     assert 'window.location.hostname.endsWith(".github.io")' in JS
-    assert 'import("./demo-engine.mjs")' in JS
+    assert 'import("./demo-engine.mjs?v=5")' in JS
     assert "your PDF is read in this browser and is not uploaded" in JS
     assert 'href="/' not in HTML
     assert 'src="/' not in HTML
@@ -46,6 +46,23 @@ def test_hosted_demo_keeps_files_local_and_uses_relative_assets():
     assert (ROOT / "static" / "vendor" / "pdf.mjs").exists()
     assert (ROOT / "static" / "vendor" / "pdf.worker.mjs").exists()
     assert (ROOT / "static" / "vendor" / "PDFJS_LICENSE").exists()
+
+
+def test_pdf_ready_state_does_not_require_a_second_paste():
+    assert "Build practice from this PDF" in JS
+    assert "Review or edit extracted text" in JS
+    assert "(optional)" in JS
+    assert 'minlength="200"' not in JS
+    assert "Paste at least 200 characters" not in JS
+    assert "const MIN_MATERIAL_CHARS = 40" in JS
+
+
+def test_readme_uses_public_demo_as_the_judge_link():
+    readme = (ROOT / "README.md").read_text()
+    normalized_readme = " ".join(readme.split())
+    assert "https://jiangggqr.github.io/sparring-ai-study-coach/" in readme
+    assert "[http://localhost:8100]" not in readme
+    assert "available only on the computer running it" in normalized_readme
 
 
 def test_review_schedule_uses_dates_and_explicit_completion():

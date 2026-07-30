@@ -1,7 +1,7 @@
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
 const MAX_PDF_PAGES = 80;
 const MAX_MATERIAL_CHARS = 24_000;
-const MIN_MATERIAL_CHARS = 200;
+const MIN_MATERIAL_CHARS = 40;
 const CONNECTORS = [
   " because ",
   " so ",
@@ -25,7 +25,7 @@ function normalizedMaterial(raw) {
   const material = String(raw || "").trim();
   if (material.length < MIN_MATERIAL_CHARS) {
     throw demoError(
-      `Paste at least ${MIN_MATERIAL_CHARS} characters of study material.`,
+      `Provide at least one complete sentence (${MIN_MATERIAL_CHARS} characters) of study material.`,
       "material_too_short",
     );
   }
@@ -81,7 +81,18 @@ function fixturePlan(rawMaterial) {
   const material = normalizedMaterial(rawMaterial);
   const pieces = chunks(material);
   while (pieces.length < 3) pieces.push(material.slice(0, 220));
-  const names = pieces.slice(0, 3).map(conceptName);
+  const seenNames = new Set();
+  const names = pieces.slice(0, 3).map((piece, index) => {
+    const baseName = conceptName(piece, index);
+    let name = baseName;
+    let suffix = index + 1;
+    while (seenNames.has(name.toLocaleLowerCase())) {
+      name = `${baseName} ${suffix}`;
+      suffix += 1;
+    }
+    seenNames.add(name.toLocaleLowerCase());
+    return name;
+  });
   return {
     target: `After this session, you will be able to explain how ${names.join(", ")} fit together.`,
     concepts: pieces.slice(0, 3).map((piece, index) => ({
@@ -244,7 +255,18 @@ export async function fixtureRequest(path, body) {
   throw demoError("This hosted demo action is unavailable.", "unsupported_action");
 }
 
-export async function extractPdfInBrowser(file) {
+function abortError() {
+  const error = new Error("PDF extraction was cancelled.");
+  error.name = "AbortError";
+  return error;
+}
+
+function throwIfAborted(signal) {
+  if (signal?.aborted) throw abortError();
+}
+
+export async function extractPdfInBrowser(file, { signal } = {}) {
+  throwIfAborted(signal);
   if (!file || (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf")) {
     throw demoError("Choose a PDF file.", "not_a_pdf");
   }
@@ -255,7 +277,8 @@ export async function extractPdfInBrowser(file) {
   const pdfjs = await import("./vendor/pdf.mjs");
   pdfjs.GlobalWorkerOptions.workerSrc = new URL("./vendor/pdf.worker.mjs", import.meta.url).href;
   const data = new Uint8Array(await file.arrayBuffer());
-  if (new TextDecoder("latin1").decode(data.slice(0, 5)) !== "%PDF-") {
+  throwIfAborted(signal);
+  if (String.fromCharCode(...data.slice(0, 5)) !== "%PDF-") {
     throw demoError("This file does not appear to be a valid PDF.", "invalid_pdf");
   }
 
@@ -270,31 +293,37 @@ export async function extractPdfInBrowser(file) {
     passwordRequired = true;
     loadingTask.destroy();
   };
+  const abortLoading = () => loadingTask.destroy();
+  signal?.addEventListener("abort", abortLoading, { once: true });
 
   let document;
   try {
-    document = await loadingTask.promise;
-  } catch (error) {
-    if (passwordRequired || error?.name === "PasswordException") {
+    try {
+      document = await loadingTask.promise;
+    } catch (error) {
+      if (signal?.aborted) throw abortError();
+      if (passwordRequired || error?.name === "PasswordException") {
+        throw demoError(
+          "Password-protected PDFs are not supported. Upload an unlocked copy or paste the text.",
+          "encrypted_pdf",
+        );
+      }
       throw demoError(
-        "Password-protected PDFs are not supported. Upload an unlocked copy or paste the text.",
-        "encrypted_pdf",
+        "The PDF could not be read. Try a searchable PDF or paste the relevant text.",
+        "invalid_pdf",
       );
     }
-    throw demoError(
-      "The PDF could not be read. Try a searchable PDF or paste the relevant text.",
-      "invalid_pdf",
-    );
-  }
 
-  try {
+    throwIfAborted(signal);
     if (document.numPages > MAX_PDF_PAGES) {
       throw demoError("Keep PDF files to 80 pages or fewer.", "pdf_too_many_pages");
     }
     const pageSections = [];
     const warnings = [];
     let extractedPages = 0;
+    let readableCharacters = 0;
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+      throwIfAborted(signal);
       try {
         const page = await document.getPage(pageNumber);
         const textContent = await page.getTextContent();
@@ -305,9 +334,11 @@ export async function extractPdfInBrowser(file) {
           .trim();
         if (text) {
           extractedPages += 1;
+          readableCharacters += text.length;
           pageSections.push(`[Page ${pageNumber}]\n${text}`);
         }
       } catch (_error) {
+        if (signal?.aborted) throw abortError();
         warnings.push(`Page ${pageNumber} could not be read and was skipped.`);
       }
     }
@@ -316,6 +347,12 @@ export async function extractPdfInBrowser(file) {
       throw demoError(
         "No selectable text was found. Upload an OCR/searchable PDF or paste the relevant text.",
         "pdf_no_text",
+      );
+    }
+    if (readableCharacters < MIN_MATERIAL_CHARS) {
+      throw demoError(
+        `Only ${readableCharacters} readable characters were found. Upload a PDF with at least one complete sentence (${MIN_MATERIAL_CHARS} characters).`,
+        "pdf_too_little_text",
       );
     }
 
@@ -342,7 +379,8 @@ export async function extractPdfInBrowser(file) {
       warnings,
     };
   } finally {
-    if (typeof document.cleanup === "function") await document.cleanup();
-    await loadingTask.destroy();
+    signal?.removeEventListener("abort", abortLoading);
+    if (typeof document?.cleanup === "function") await document.cleanup();
+    await loadingTask.destroy().catch(() => {});
   }
 }

@@ -32,6 +32,8 @@ The 1-3-7 schedule is an implementation heuristic, not a universal optimum.
 ## PDF support
 
 - Text-based PDFs up to 20 MB and 80 pages.
+- One complete sentence (40 readable characters) is enough to begin; there is no
+  200-character paste requirement after a PDF is ready.
 - Page markers are retained in the extracted study text.
 - In the hosted demo, PDF.js extracts text locally in the browser and the file is not
   uploaded.
@@ -63,7 +65,9 @@ Add a server-side OpenAI key to `.env`, then run:
 uvicorn app.main:app --reload --port 8100
 ```
 
-Open [http://localhost:8100](http://localhost:8100).
+This command starts a local development server on port 8100. It is available only on
+the computer running it; judges and other visitors should use the public live demo linked
+at the top of this README.
 
 ### Deterministic demo mode
 
@@ -141,6 +145,17 @@ offline shell caching, and completion-state persistence.
 
 ## Deploy
 
+### Public GitHub Pages demo
+
+The public, no-sign-in demo is:
+
+https://jiangggqr.github.io/sparring-ai-study-coach/
+
+It extracts PDF text locally and uses deterministic in-browser practice responses so
+judges can complete the flow without a shared API key.
+
+### FastAPI real-model deployment
+
 The repository includes:
 
 - `Dockerfile` for any container host;
@@ -148,8 +163,9 @@ The repository includes:
 - `/api/health` for deployment health checks.
 
 Set `OPENAI_API_KEY`, keep `SPARRING_MODE=real`, and optionally override
-`SPARRING_MODEL`. SQLite on the included free Render configuration is ephemeral and is
-used only for non-identifying practice evidence.
+`SPARRING_MODEL`. The FastAPI deployment exposes `/api/health`. SQLite on the included
+free Render configuration is ephemeral and is used only for non-identifying practice
+evidence.
 
 ## Known limitations
 

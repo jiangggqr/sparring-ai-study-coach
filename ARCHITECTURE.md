@@ -49,7 +49,7 @@ same wording, change the item type, or change the source anchor.
 - maximum 80 pages;
 - `%PDF-` magic header required;
 - password-protected documents rejected;
-- minimum extractable-text threshold required;
+- at least one complete sentence (40 readable characters);
 - source markers use `[Page N]`;
 - no upload bytes are written to disk.
 

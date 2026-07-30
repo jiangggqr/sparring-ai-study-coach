@@ -5,6 +5,8 @@ const CORRUPT_KEY = "sparring_state_v2_recovery";
 const DAY_MS = 86_400_000;
 const REVIEW_DAYS = [1, 3, 7];
 const LETTERS = ["A", "B", "C", "D"];
+const MIN_MATERIAL_CHARS = 40;
+const PDF_EXTRACTION_TIMEOUT_MS = 90_000;
 const HOSTED_DEMO =
   window.location.hostname.endsWith(".github.io") ||
   new URLSearchParams(window.location.search).has("staticDemo");
@@ -12,7 +14,7 @@ const HOSTED_DEMO =
 let demoEnginePromise = null;
 
 function demoEngine() {
-  if (!demoEnginePromise) demoEnginePromise = import("./demo-engine.mjs");
+  if (!demoEnginePromise) demoEnginePromise = import("./demo-engine.mjs?v=5");
   return demoEnginePromise;
 }
 
@@ -279,7 +281,7 @@ async function api(path, body, timeoutMs = 70_000) {
   }
 }
 
-async function uploadPdf(file) {
+async function uploadPdf(file, { signal } = {}) {
   if (!file || (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf")) {
     throw new ApiError("Choose a PDF file.", { code: "not_a_pdf", retryable: false });
   }
@@ -291,7 +293,7 @@ async function uploadPdf(file) {
   }
   if (HOSTED_DEMO) {
     const engine = await demoEngine();
-    return engine.extractPdfInBrowser(file);
+    return engine.extractPdfInBrowser(file, { signal });
   }
   if (!navigator.onLine) {
     throw new ApiError(
@@ -302,6 +304,8 @@ async function uploadPdf(file) {
 
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 70_000);
+  const abortFromCaller = () => controller.abort();
+  signal?.addEventListener("abort", abortFromCaller, { once: true });
   const formData = new FormData();
   formData.append("file", file, file.name);
   try {
@@ -331,6 +335,7 @@ async function uploadPdf(file) {
     });
   } finally {
     window.clearTimeout(timeout);
+    signal?.removeEventListener("abort", abortFromCaller);
   }
 }
 
@@ -394,13 +399,15 @@ function renderHome(error = null) {
   const trustMessage = HOSTED_DEMO
     ? "In this hosted demo, your PDF is read in this browser and is not uploaded. Extracted text and draft progress stay on this device."
     : "PDF files are read in server memory and not stored. Extracted text is sent to the configured AI service; draft progress stays in this browser.";
+  const hasPdfSource = state.source?.type === "pdf";
   const sourceSummary =
-    state.source?.type === "pdf"
+    hasPdfSource
       ? `
         <div class="source-summary" role="status">
           <div>
+            <span class="source-ready">✓ PDF ready</span>
             <strong>${esc(state.source.filename)}</strong>
-            <span>${state.source.pageCount} pages · ${state.material.length.toLocaleString()} extracted characters${state.source.edited ? " · edited" : ""}</span>
+            <span>${state.source.extractedPages ?? state.source.pageCount} of ${state.source.pageCount} pages contained text · ${state.material.length.toLocaleString()} extracted characters${state.source.edited ? " · edited" : ""}</span>
           </div>
           <button id="remove-source" class="text-button" type="button">Remove</button>
         </div>
@@ -408,6 +415,40 @@ function renderHome(error = null) {
           .map((warning) => `<p class="source-warning">${esc(warning)}</p>`)
           .join("")}`
       : "";
+  const materialEditor = hasPdfSource
+    ? `
+      <details class="source-editor">
+        <summary>Review or edit extracted text <span>(optional)</span></summary>
+        <div class="source-editor-body">
+          <label class="field-label" for="material">
+            <span>Text extracted from your PDF</span>
+            <span id="character-count" class="field-hint">${state.material.length.toLocaleString()} / 24,000</span>
+          </label>
+          <textarea
+            id="material"
+            name="material"
+            maxlength="24000"
+            aria-describedby="material-help material-error"
+          >${esc(state.material)}</textarea>
+          <p id="material-help" class="microcopy">Editing is optional. Sparring will use this extracted text as the only learning source.</p>
+          <p id="material-error" class="field-error" role="alert" hidden></p>
+        </div>
+      </details>`
+    : `
+      <div class="or-divider"><span>or paste text</span></div>
+      <label class="field-label" for="material">
+        <span>Paste study text</span>
+        <span id="character-count" class="field-hint">${state.material.length.toLocaleString()} / 24,000</span>
+      </label>
+      <textarea
+        id="material"
+        name="material"
+        maxlength="24000"
+        aria-describedby="material-help material-error"
+        placeholder="Paste lecture notes, a chapter excerpt, or a paper section…"
+      >${esc(state.material)}</textarea>
+      <p id="material-help" class="microcopy">A short paragraph is enough. Only this text is used as the learning source.</p>
+      <p id="material-error" class="field-error" role="alert" hidden></p>`;
   setView(`
     <section class="screen hero" aria-labelledby="screen-title">
       <div class="hero-copy">
@@ -450,26 +491,23 @@ function renderHome(error = null) {
             </label>
             ${sourceSummary}
           </div>
-          <div class="or-divider"><span>or paste text</span></div>
-          <label class="field-label" for="material">
-            <span>What do you need to learn?</span>
-            <span id="character-count" class="field-hint">${state.material.length.toLocaleString()} / 24,000</span>
-          </label>
-          <textarea
-            id="material"
-            name="material"
-            minlength="200"
-            maxlength="24000"
-            placeholder="Paste lecture notes, a chapter excerpt, or a paper section…"
-            required
-          >${esc(state.material)}</textarea>
-          <p class="microcopy">Use at least a few paragraphs. Only this pasted text is used as the learning source.</p>
+          ${materialEditor}
           <div class="button-row">
-            <button id="build-plan" class="button" type="submit">Build my practice</button>
-            <button id="use-sample" class="button secondary" type="button">Use sample material</button>
+            <button id="build-plan" class="button" type="submit">${hasPdfSource ? "Build practice from this PDF" : "Build my practice"}</button>
+            ${hasPdfSource ? "" : '<button id="use-sample" class="button secondary" type="button">Use sample material</button>'}
           </div>
           ${recoveryNotice ? `<div class="error-panel" role="status"><p>${esc(recoveryNotice)}</p></div>` : ""}
-          ${error ? errorPanel(error) : ""}
+          ${
+            error
+              ? error.context === "pdf"
+                ? `<div class="error-panel" role="alert" tabindex="-1">
+                    <p><strong>This PDF wasn’t added.</strong></p>
+                    <p>${esc(error.message || "Choose another PDF and try again.")}</p>
+                    <p>Your existing material and progress are still saved. Choose a PDF above to try again.</p>
+                  </div>`
+                : errorPanel(error)
+              : ""
+          }
           <div class="trust-note">
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
               <path fill="currentColor" d="M8 1.5 13 3v3.8c0 3.2-2.1 6.1-5 7.7-2.9-1.6-5-4.5-5-7.7V3l5-1.5Zm0 2L5 4.4v2.4c0 2.2 1.2 4.2 3 5.5 1.8-1.3 3-3.3 3-5.5V4.4L8 3.5Z"/>
@@ -487,16 +525,25 @@ function renderHome(error = null) {
     if (state.source?.type === "pdf") state.source.edited = true;
     else state.source = textarea.value ? { type: "paste" } : null;
     count.textContent = `${textarea.value.length.toLocaleString()} / 24,000`;
+    textarea.removeAttribute("aria-invalid");
+    const materialError = document.getElementById("material-error");
+    if (materialError) {
+      materialError.textContent = "";
+      materialError.hidden = true;
+    }
     debouncedSave();
   });
   document.getElementById("pdf-upload").addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    event.target.disabled = true;
     const buildButton = document.getElementById("build-plan");
     setBusy(buildButton, true, "Extracting your PDF…");
     announce(`Extracting text from ${file.name}.`);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), PDF_EXTRACTION_TIMEOUT_MS);
     try {
-      const result = await uploadPdf(file);
+      const result = await uploadPdf(file, { signal: controller.signal });
       state.material = result.text;
       state.source = {
         type: "pdf",
@@ -514,7 +561,17 @@ function renderHome(error = null) {
       renderHome();
       document.getElementById("build-plan")?.focus();
     } catch (uploadError) {
+      if (uploadError.name === "AbortError") {
+        uploadError = new ApiError(
+          "PDF extraction took too long. Try a smaller chapter or a searchable copy.",
+          { code: "pdf_timeout", retryable: false },
+        );
+      }
+      uploadError.context = "pdf";
       renderHome(uploadError);
+      document.querySelector(".error-panel")?.focus();
+    } finally {
+      window.clearTimeout(timeout);
     }
   });
   document.getElementById("remove-source")?.addEventListener("click", () => {
@@ -524,7 +581,7 @@ function renderHome(error = null) {
     renderHome();
     document.getElementById("pdf-upload")?.focus();
   });
-  document.getElementById("use-sample").addEventListener("click", () => {
+  document.getElementById("use-sample")?.addEventListener("click", () => {
     state.material = SAMPLE_MATERIAL;
     state.source = { type: "sample" };
     textarea.value = SAMPLE_MATERIAL;
@@ -536,12 +593,21 @@ function renderHome(error = null) {
     event.preventDefault();
     state.material = textarea.value.trim();
     saveState();
-    if (state.material.length < 200) {
-      textarea.setCustomValidity("Paste at least 200 characters.");
-      textarea.reportValidity();
-      textarea.setCustomValidity("");
+    if (state.material.length < MIN_MATERIAL_CHARS) {
+      const materialError = document.getElementById("material-error");
+      const message = hasPdfSource
+        ? `This PDF contains only ${state.material.length} readable characters. Use a PDF with at least one complete sentence (${MIN_MATERIAL_CHARS} characters), or edit the extracted text.`
+        : `Add at least one complete sentence (${MIN_MATERIAL_CHARS} characters), or upload a readable PDF.`;
+      if (materialError) {
+        materialError.textContent = message;
+        materialError.hidden = false;
+      }
+      textarea.setAttribute("aria-invalid", "true");
+      document.querySelector(".source-editor")?.setAttribute("open", "");
+      textarea.focus();
       return;
     }
+    textarea.removeAttribute("aria-invalid");
     await buildPlan();
   });
   if (error && error.retryable !== false) {

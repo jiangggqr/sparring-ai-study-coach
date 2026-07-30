@@ -81,9 +81,16 @@ def test_plan_has_three_unique_grounded_concepts(client: TestClient, material: s
 
 
 def test_material_bounds_are_enforced(client: TestClient):
-    too_short = client.post("/api/plan", json={"material": "short"})
+    too_short = client.post("/api/plan", json={"material": "x" * 39})
     assert too_short.status_code == 400
-    assert "200" in too_short.json()["detail"]
+    assert "40" in too_short.json()["detail"]
+
+    short_paragraph = (
+        "A short grounded paragraph is enough to begin practice."
+    )
+    assert len(short_paragraph) < 200
+    accepted = client.post("/api/plan", json={"material": short_paragraph})
+    assert accepted.status_code == 200
 
     too_long = client.post("/api/plan", json={"material": "x" * 24_001})
     assert too_long.status_code == 413
@@ -109,6 +116,20 @@ def test_pdf_upload_extracts_text_with_page_marker(client: TestClient):
     assert payload["text"].startswith("[Page 1]")
     assert "Retrieval practice" in payload["text"]
     assert payload["truncated"] is False
+
+
+def test_short_pdf_can_build_a_plan_without_pasting_more_text(client: TestClient):
+    text = "A short PDF sentence is enough to build a grounded practice plan."
+    assert 40 <= len(text) < 200
+    extracted = client.post(
+        "/api/extract/pdf",
+        files={"file": ("short-notes.pdf", text_pdf_bytes(text), "application/pdf")},
+    )
+    assert extracted.status_code == 200
+
+    plan = client.post("/api/plan", json={"material": extracted.json()["text"]})
+    assert plan.status_code == 200
+    assert len(plan.json()["concepts"]) == 3
 
 
 def test_pdf_upload_rejects_invalid_and_image_only_files(client: TestClient):

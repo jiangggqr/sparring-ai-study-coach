@@ -93,6 +93,7 @@ def extract_pdf_material(
     pages_without_text = 0
     truncated = False
     current_chars = 0
+    readable_characters = 0
 
     for page_number, page in enumerate(reader.pages, start=1):
         try:
@@ -113,17 +114,19 @@ def extract_pdf_material(
             truncated = True
         parts.append(section)
         extracted_pages += 1
+        readable_characters += len(page_text)
         current_chars += len(section) + 2
         if truncated:
             break
 
     text = "\n\n".join(parts).strip()
-    if len(text) < settings.pdf_min_extracted_chars:
+    if readable_characters < settings.pdf_min_extracted_chars:
         raise PDFExtractionError(
             code="pdf_has_no_text",
             public_message=(
-                "This PDF contains too little selectable text. It may be a scan. "
-                "Use a searchable/OCR copy, or paste the text instead."
+                "This PDF does not contain one complete sentence of selectable text. "
+                f"Use a searchable/OCR copy with at least {settings.pdf_min_extracted_chars} "
+                "characters, or paste the text instead."
             ),
         )
 

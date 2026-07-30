@@ -17,11 +17,11 @@ class Settings:
     model: str = "gpt-5.6"
     database_path: Path = PROJECT_ROOT / "data" / "sparring.sqlite3"
     static_dir: Path = PROJECT_ROOT / "static"
-    material_min_chars: int = 200
+    material_min_chars: int = 40
     material_max_chars: int = 24_000
     pdf_max_bytes: int = 20 * 1024 * 1024
     pdf_max_pages: int = 80
-    pdf_min_extracted_chars: int = 80
+    pdf_min_extracted_chars: int = 40
     expose_docs: bool = False
 
     @classmethod
@@ -37,12 +37,12 @@ class Settings:
             model=os.getenv("SPARRING_MODEL", "gpt-5.6").strip(),
             database_path=database_path,
             static_dir=PROJECT_ROOT / "static",
-            material_min_chars=int(os.getenv("SPARRING_MATERIAL_MIN", "200")),
+            material_min_chars=int(os.getenv("SPARRING_MATERIAL_MIN", "40")),
             material_max_chars=int(os.getenv("SPARRING_MATERIAL_MAX", "24000")),
             pdf_max_bytes=int(os.getenv("SPARRING_PDF_MAX_BYTES", str(20 * 1024 * 1024))),
             pdf_max_pages=int(os.getenv("SPARRING_PDF_MAX_PAGES", "80")),
             pdf_min_extracted_chars=int(
-                os.getenv("SPARRING_PDF_MIN_EXTRACTED_CHARS", "80")
+                os.getenv("SPARRING_PDF_MIN_EXTRACTED_CHARS", "40")
             ),
             expose_docs=os.getenv("SPARRING_EXPOSE_DOCS", "0") == "1",
         )

@@ -10,7 +10,13 @@
 confidence judgment, teach-back, and spaced cold review - while keeping every meaningful
 learning action with the learner.
 
+**Live demo:** https://jiangggqr.github.io/sparring-ai-study-coach/
+
 **Source code:** https://github.com/jiangggqr/sparring-ai-study-coach
+
+The public GitHub Pages demo extracts PDF text locally and uses deterministic in-browser
+practice responses so judges can complete the full interaction without a shared API key.
+The FastAPI/OpenAI path is the real-model server build.
 
 ## Inspiration
 
@@ -40,14 +46,15 @@ practice evidence without claiming permanent mastery.
 - static semantic HTML, CSS, and JavaScript
 - OpenAI Responses API with Pydantic Structured Outputs
 - pypdf for in-memory PDF text extraction
+- PDF.js for local PDF extraction in the public GitHub Pages demo
 - SQLite for observation-only practice evidence
 - localStorage and a service worker for precise resume and recovery
 - Docker and Render deployment configuration
 
-Model credentials remain on the server. Generated source anchors are verified against
-the learner's supplied material before they reach the UI. Deterministic fixtures are
-separate from real-model execution so tests remain stable without masking production
-failures.
+Model credentials remain on the FastAPI server. Generated source anchors are verified
+against the learner's supplied material before they reach the UI. The public Pages demo
+uses a separate deterministic browser engine; it is disclosed as a judge-friendly
+demonstration and does not masquerade as the real-model path.
 
 ## Challenges
 

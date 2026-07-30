@@ -117,6 +117,7 @@ process.stdout.write(JSON.stringify({ plan, lesson, listed, linked, cold }));
 
 def test_service_worker_uses_its_pages_scope():
     worker = (ROOT / "static" / "sw.js").read_text()
+    assert '"sparring-shell-v5"' in worker
     assert 'new URL("./", self.registration.scope)' in worker
     assert 'caches.match(ROOT_URL)' in worker
     assert '"/index.html"' not in worker
@@ -164,3 +165,38 @@ process.stdout.write(JSON.stringify(result));
     assert result["text"].startswith("[Page 1]")
     assert "Retrieval practice" in result["text"]
     assert result["truncated"] is False
+
+
+def test_browser_pdf_adapter_accepts_short_pdf_and_builds_plan(tmp_path: Path):
+    pdf_path = tmp_path / "short-browser-fixture.pdf"
+    short_text = "A short PDF sentence is enough to build a grounded practice plan."
+    assert 40 <= len(short_text) < 200
+    pdf_path.write_bytes(text_pdf_bytes(short_text))
+    script = f"""
+globalThis.DOMMatrix = class DOMMatrix {{}};
+globalThis.Path2D = class Path2D {{}};
+const {{ readFile }} = await import("node:fs/promises");
+const {{ extractPdfInBrowser, fixtureRequest }} = await import("./static/demo-engine.mjs");
+const bytes = await readFile({json.dumps(str(pdf_path))});
+const file = {{
+  name: "short-browser-fixture.pdf",
+  type: "application/pdf",
+  size: bytes.byteLength,
+  arrayBuffer: async () =>
+    bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+}};
+const extracted = await extractPdfInBrowser(file);
+const plan = await fixtureRequest("plan", {{ material: extracted.text }});
+process.stdout.write(JSON.stringify({{ extracted, plan }}));
+"""
+    completed = subprocess.run(
+        ["node", "--input-type=module", "--eval", script],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    result = json.loads(completed.stdout)
+    assert result["extracted"]["extracted_pages"] == 1
+    assert len(result["plan"]["concepts"]) == 3
+    assert len({item["name"] for item in result["plan"]["concepts"]}) == 3

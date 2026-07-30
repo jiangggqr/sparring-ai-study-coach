@@ -418,14 +418,69 @@ textarea::placeholder {
   overflow-wrap: anywhere;
 }
 
+.source-summary .text-button {
+  min-width: 44px;
+  min-height: 44px;
+  align-self: center;
+}
+
 .source-summary span,
 .source-warning {
   color: var(--ink-soft);
   font-size: 12px;
 }
 
+.source-summary .source-ready {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 4px;
+  padding: 2px 7px;
+  color: var(--pine-dark);
+  background: var(--mint);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .source-warning {
   margin: 7px 2px 0;
+}
+
+.source-editor {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.source-editor summary {
+  min-height: 44px;
+  padding: 10px 13px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 720;
+}
+
+.source-editor summary span {
+  font-weight: 500;
+}
+
+.source-editor-body {
+  padding: 4px 13px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.source-editor textarea {
+  min-height: 170px;
+}
+
+.field-error {
+  margin: 8px 0 0;
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 650;
 }
 
 .button-row {
@@ -1101,6 +1156,10 @@ dialog::backdrop {
 
   .button-row .button {
     flex: 1 1 100%;
+  }
+
+  .source-summary {
+    align-items: flex-start;
   }
 
   .stat-grid {
