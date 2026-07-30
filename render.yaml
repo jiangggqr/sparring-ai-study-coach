@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: sparring-study
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SPARRING_MODEL
+        value: gpt-5.6
+      - key: SPARRING_MODE
+        value: real
+      - key: SPARRING_DATABASE_PATH
+        value: /tmp/sparring.sqlite3

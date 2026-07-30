@@ -1,0 +1,24 @@
+AI can give you a polished answer in seconds. But here's the uncomfortable question:
+did you learn it, or did the AI simply perform the thinking for you?
+
+Sparring changes that contract. I upload the PDF I actually need to study, and the AI
+turns only that material into three concepts and one clear target.
+
+Before it explains anything, I make a quick prediction. It isn't a grade or an entrance
+test. It gives me something real to compare with this short, source-grounded explanation.
+
+Now I answer before feedback, and I have to say how confident I am. Here I was very sure
+- and wrong. Sparring shows why my choice fails and why the material supports a different
+relationship. That mismatch is more useful than a score alone.
+
+Next, I teach the idea back in two lines. My first version only lists the parts, so the AI
+asks for one missing connection. I revise it; the explanation stays mine.
+
+Then I come back later. The same objective returns in new wording, with no hint before I
+commit. A pass schedules day three, then day seven. We call this practice evidence - not
+permanent mastery.
+
+FastAPI keeps the model key on the server. Structured outputs and source-anchor checks keep
+every generated step inside my uploaded material.
+
+Sparring. The AI study coach that refuses to think for you.

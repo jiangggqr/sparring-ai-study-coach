@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f1e8">
+  <meta
+    name="description"
+    content="Sparring turns your study material into prediction, retrieval, teach-back, and spaced review."
+  >
+  <title>Sparring — keep the thinking</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#app">Skip to learning activity</a>
+
+  <div id="offline-banner" class="offline-banner" role="status" hidden>
+    You’re offline. Loaded work remains available and your draft is saved on this device.
+  </div>
+  <div id="conflict-banner" class="conflict-banner" role="status" hidden>
+    <span>A newer Sparring update was saved in another tab.</span>
+    <button id="load-newer-state" class="text-button" type="button">Load newer progress</button>
+  </div>
+
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="Sparring home">
+      <span class="brand-mark" aria-hidden="true">S</span>
+      <span>Sparring</span>
+    </a>
+    <div class="header-meta">
+      <span id="save-status" class="save-status" role="status" aria-live="polite">Ready</span>
+      <button id="reset-button" class="text-button" type="button" hidden>Start over</button>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <div id="app" tabindex="-1"></div>
+  </main>
+
+  <footer class="site-footer">
+    <p>AI structures the practice. You make every prediction, answer, and explanation.</p>
+  </footer>
+
+  <div id="live-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <dialog id="reset-dialog" aria-labelledby="reset-title">
+    <form method="dialog" class="dialog-card">
+      <p class="eyebrow">Clear local progress</p>
+      <h2 id="reset-title">Start over?</h2>
+      <p>Your pasted material, answers, and review schedule will be removed from this browser.</p>
+      <div class="button-row">
+        <button class="button secondary" value="cancel">Keep my work</button>
+        <button id="confirm-reset" class="button danger" value="confirm">Clear and start over</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
