@@ -5,6 +5,16 @@ const CORRUPT_KEY = "sparring_state_v2_recovery";
 const DAY_MS = 86_400_000;
 const REVIEW_DAYS = [1, 3, 7];
 const LETTERS = ["A", "B", "C", "D"];
+const HOSTED_DEMO =
+  window.location.hostname.endsWith(".github.io") ||
+  new URLSearchParams(window.location.search).has("staticDemo");
+
+let demoEnginePromise = null;
+
+function demoEngine() {
+  if (!demoEnginePromise) demoEnginePromise = import("./demo-engine.mjs");
+  return demoEnginePromise;
+}
 
 const app = document.getElementById("app");
 const liveStatus = document.getElementById("live-status");
@@ -230,6 +240,10 @@ class ApiError extends Error {
 }
 
 async function api(path, body, timeoutMs = 70_000) {
+  if (HOSTED_DEMO) {
+    const engine = await demoEngine();
+    return engine.fixtureRequest(path, body);
+  }
   if (!navigator.onLine) {
     throw new ApiError(
       "You’re offline. Your draft is safe; reconnect to generate this step.",
@@ -266,12 +280,6 @@ async function api(path, body, timeoutMs = 70_000) {
 }
 
 async function uploadPdf(file) {
-  if (!navigator.onLine) {
-    throw new ApiError(
-      "You’re offline. Reconnect to extract a PDF; your existing draft remains safe.",
-      { code: "offline", retryable: true },
-    );
-  }
   if (!file || (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf")) {
     throw new ApiError("Choose a PDF file.", { code: "not_a_pdf", retryable: false });
   }
@@ -280,6 +288,16 @@ async function uploadPdf(file) {
       code: "pdf_too_large",
       retryable: false,
     });
+  }
+  if (HOSTED_DEMO) {
+    const engine = await demoEngine();
+    return engine.extractPdfInBrowser(file);
+  }
+  if (!navigator.onLine) {
+    throw new ApiError(
+      "You’re offline. Reconnect to extract a PDF; your existing draft remains safe.",
+      { code: "offline", retryable: true },
+    );
   }
 
   const controller = new AbortController();
@@ -345,7 +363,7 @@ let flushingEvidence = false;
 
 async function flushEvidence() {
   if (flushingEvidence) return;
-  if (!navigator.onLine || !state.unsyncedEvidence.length) return;
+  if ((!navigator.onLine && !HOSTED_DEMO) || !state.unsyncedEvidence.length) return;
   flushingEvidence = true;
   const pending = [...state.unsyncedEvidence];
   try {
@@ -373,6 +391,9 @@ function updateConnectivity() {
 }
 
 function renderHome(error = null) {
+  const trustMessage = HOSTED_DEMO
+    ? "In this hosted demo, your PDF is read in this browser and is not uploaded. Extracted text and draft progress stay on this device."
+    : "PDF files are read in server memory and not stored. Extracted text is sent to the configured AI service; draft progress stays in this browser.";
   const sourceSummary =
     state.source?.type === "pdf"
       ? `
@@ -453,7 +474,7 @@ function renderHome(error = null) {
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
               <path fill="currentColor" d="M8 1.5 13 3v3.8c0 3.2-2.1 6.1-5 7.7-2.9-1.6-5-4.5-5-7.7V3l5-1.5Zm0 2L5 4.4v2.4c0 2.2 1.2 4.2 3 5.5 1.8-1.3 3-3.3 3-5.5V4.4L8 3.5Z"/>
             </svg>
-            <span>PDF files are read in server memory and not stored. Extracted text is sent to the configured AI service; draft progress stays in this browser.</span>
+            <span>${esc(trustMessage)}</span>
           </div>
         </form>
       </div>
@@ -1418,6 +1439,7 @@ resetButton.addEventListener("click", () => {
 
 confirmReset.addEventListener("click", () => {
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(CORRUPT_KEY);
   state = freshState();
   recoveryNotice = "";
   announce("Local Sparring progress cleared.");
@@ -1451,7 +1473,7 @@ loadNewerStateButton.addEventListener("click", () => {
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {
       // The app remains usable without offline shell caching.
     });
   });

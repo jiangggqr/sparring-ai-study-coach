@@ -1,5 +1,15 @@
-const CACHE_NAME = "sparring-shell-v3";
-const APP_SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/favicon.svg"];
+const CACHE_NAME = "sparring-shell-v4";
+const ROOT_URL = new URL("./", self.registration.scope).href;
+const APP_SHELL = [
+  ROOT_URL,
+  new URL("index.html", ROOT_URL).href,
+  new URL("styles.css", ROOT_URL).href,
+  new URL("app.js", ROOT_URL).href,
+  new URL("demo-engine.mjs", ROOT_URL).href,
+  new URL("favicon.svg", ROOT_URL).href,
+  new URL("vendor/pdf.mjs", ROOT_URL).href,
+  new URL("vendor/pdf.worker.mjs", ROOT_URL).href,
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
@@ -26,6 +36,11 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         return response;
       })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match("/"))),
+      .catch(async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        if (event.request.mode === "navigate") return caches.match(ROOT_URL);
+        return Response.error();
+      }),
   );
 });

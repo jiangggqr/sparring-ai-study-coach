@@ -31,8 +31,21 @@ def test_recovery_and_offline_contract():
     assert "sparring_state_v2_recovery" in JS
     assert 'window.addEventListener("storage"' in JS
     assert 'window.addEventListener("offline"' in JS
-    assert 'navigator.serviceWorker.register("/sw.js")' in JS
+    assert 'navigator.serviceWorker.register("./sw.js")' in JS
+    assert "localStorage.removeItem(CORRUPT_KEY)" in JS
     assert (ROOT / "static" / "sw.js").exists()
+
+
+def test_hosted_demo_keeps_files_local_and_uses_relative_assets():
+    assert 'window.location.hostname.endsWith(".github.io")' in JS
+    assert 'import("./demo-engine.mjs")' in JS
+    assert "your PDF is read in this browser and is not uploaded" in JS
+    assert 'href="/' not in HTML
+    assert 'src="/' not in HTML
+    assert (ROOT / "static" / "demo-engine.mjs").exists()
+    assert (ROOT / "static" / "vendor" / "pdf.mjs").exists()
+    assert (ROOT / "static" / "vendor" / "pdf.worker.mjs").exists()
+    assert (ROOT / "static" / "vendor" / "PDFJS_LICENSE").exists()
 
 
 def test_review_schedule_uses_dates_and_explicit_completion():

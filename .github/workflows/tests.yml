@@ -23,4 +23,5 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: pytest
       - run: node --check static/app.js
+      - run: node --check static/demo-engine.mjs
       - run: node --check static/sw.js

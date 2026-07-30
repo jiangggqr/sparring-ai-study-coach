@@ -5,6 +5,7 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
+dist/
 data/*.sqlite3
 data/*.sqlite3-shm
 data/*.sqlite3-wal

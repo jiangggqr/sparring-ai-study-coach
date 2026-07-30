@@ -21,6 +21,12 @@ flowchart LR
     I --> J["Reworded cold review"]
 ```
 
+The public GitHub Pages build is a judge-friendly adapter for the same interface. It
+uses deterministic browser fixtures and a vendored Apache-2.0 PDF.js parser, so it can
+be tried without distributing a model key. In that hosted build, both PDF extraction
+and practice generation stay on the device. The FastAPI path remains the real-model
+implementation and never silently falls back to fixtures.
+
 ## Structured output contracts
 
 - `StudyPlan`: one observable target and exactly three unique concepts.
@@ -49,6 +55,10 @@ same wording, change the item type, or change the source anchor.
 
 If extracted text exceeds the 24,000-character learning-material cap, the API truncates
 it and returns an explicit warning.
+
+The hosted Pages adapter applies the same 20 MB, 80-page, text-only, page-marker, and
+24,000-character limits in the browser. PDF.js and its worker are served from the same
+origin; no third-party CDN receives the document.
 
 ## State and evidence
 

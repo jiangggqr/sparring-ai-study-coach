@@ -2,6 +2,9 @@
 
 **The AI study coach that refuses to think for you.**
 
+[Open the live demo](https://jiangggqr.github.io/sparring-ai-study-coach/) ·
+[View the source](https://github.com/jiangggqr/sparring-ai-study-coach)
+
 Sparring turns a learner's own PDF or pasted text into a short practice cycle:
 predict, retrieve, judge confidence, explain relationships, and return later for a
 reworded cold review.
@@ -30,14 +33,18 @@ The 1-3-7 schedule is an implementation heuristic, not a universal optimum.
 
 - Text-based PDFs up to 20 MB and 80 pages.
 - Page markers are retained in the extracted study text.
-- PDF bytes are processed in server memory and are not written to disk.
+- In the hosted demo, PDF.js extracts text locally in the browser and the file is not
+  uploaded.
+- In the FastAPI build, PDF bytes are processed in server memory and are not written to
+  disk.
 - The prototype uses at most the first 24,000 extracted characters and reports
   truncation clearly.
 - Scanned/image-only and password-protected PDFs are not silently accepted. The UI asks
   for an OCR/searchable copy or pasted text.
 
-The extracted text is sent to the configured OpenAI model when AI steps run. Browser
-progress, including the extracted text, is saved in localStorage on that device.
+In the FastAPI build, extracted text is sent to the configured OpenAI model when AI
+steps run. In the hosted demo it remains local and uses deterministic practice fixtures.
+Browser progress, including extracted text, is saved in localStorage on that device.
 
 ## Run locally
 
@@ -69,6 +76,14 @@ SPARRING_MODE=fixture uvicorn app.main:app --port 8100
 Fixture mode and real-model execution are separate code paths. A real-model failure is
 never silently replaced with a fixture response, and there is no evaluator switch or
 mode badge in the learner UI.
+
+### Hosted demo
+
+The GitHub Pages demo uses the same interaction flow with a deterministic in-browser
+practice engine, so judges can try it without a shared API key. PDF text extraction and
+practice state stay on that device in the hosted demo. The FastAPI application is the
+real-model path and uses server-side OpenAI Structured Outputs when configured locally
+or on a container host.
 
 ## AI boundary
 
