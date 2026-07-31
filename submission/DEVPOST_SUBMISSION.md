@@ -10,14 +10,15 @@
 confidence judgment, teach-back, and spaced cold review - while keeping every meaningful
 learning action with the learner.
 
-**Live demo:** https://jiangggqr.github.io/sparring-ai-study-coach/
+**Live AI demo:** https://sparring-ai-study-coach.onrender.com/
 
 **Source code:** https://github.com/jiangggqr/sparring-ai-study-coach
 
-The public GitHub Pages demo extracts PDF text and recognizes scanned pages locally, then
-uses deterministic in-browser practice responses so judges can complete the full
-interaction without a shared API key. The FastAPI/OpenAI path is the real-model server
-build.
+The public Render application is the official demo. It runs the FastAPI server and uses
+GPT-5.6-sol through the server-side OpenAI Responses API. GitHub Pages redirects to that
+application; an explicit deterministic fallback remains available at
+https://jiangggqr.github.io/sparring-ai-study-coach/?staticDemo=1 for test and recovery
+use only.
 
 ## Inspiration
 
@@ -47,16 +48,16 @@ practice evidence without claiming permanent mastery.
 - static semantic HTML, CSS, and JavaScript
 - OpenAI Responses API with Pydantic Structured Outputs
 - pypdf for in-memory PDF text extraction
-- PDF.js for local PDF extraction in the public GitHub Pages demo
+- PDF.js for browser extraction and the explicit GitHub Pages fallback
 - Tesseract.js for private, in-browser English and Simplified Chinese scanned-page OCR
 - SQLite for observation-only practice evidence
 - localStorage and a service worker for precise resume and recovery
 - Docker and Render deployment configuration
 
 Model credentials remain on the FastAPI server. Generated source anchors are verified
-against the learner's supplied material before they reach the UI. The public Pages demo
-uses a separate deterministic browser engine; it is disclosed as a judge-friendly
-demonstration and does not masquerade as the real-model path.
+against the learner's supplied material before they reach the UI. The explicit Pages
+fallback uses a separate deterministic browser engine and is clearly separated from the
+official real-model demo.
 
 ## Challenges
 
@@ -127,9 +128,9 @@ Safe claims:
 - "Sparring requires an attempt before feedback."
 - "Learners commit both an answer and a confidence judgment."
 - "PDF text and generated source anchors are checked within the supplied material."
-- "Scanned-page OCR runs locally in the public demo and the PDF is not uploaded."
+- "Scanned-page OCR runs locally in the learner's browser."
 - "The prototype creates a default 1-3-7 review schedule."
-- "Teach-back feedback is a heuristic relationship check."
+- "In the live AI demo, teach-back feedback is grounded against the uploaded material."
 
 Do not claim:
 

@@ -8,6 +8,64 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_pages_redirect_and_explicit_fallback_runtime_contract():
+    script = r"""
+import { readFileSync } from "node:fs";
+import vm from "node:vm";
+
+const source = readFileSync("./static/app.js", "utf8");
+const prelude = source.split("let demoEnginePromise")[0];
+
+function evaluate(hostname, search) {
+  let redirectedTo = null;
+  const context = {
+    URLSearchParams,
+    window: {
+      location: {
+        hostname,
+        search,
+        replace: (url) => {
+          redirectedTo = url;
+        },
+      },
+    },
+  };
+  vm.createContext(context);
+  vm.runInContext(
+    `${prelude}
+     globalThis.contract = { LIVE_AI_URL, IS_GITHUB_PAGES, STATIC_DEMO, HOSTED_DEMO };`,
+    context,
+  );
+  return { ...context.contract, redirectedTo };
+}
+
+process.stdout.write(JSON.stringify({
+  pagesRoot: evaluate("jiangggqr.github.io", ""),
+  pagesFallback: evaluate("jiangggqr.github.io", "?staticDemo=1"),
+  pagesInvalidFallback: evaluate("jiangggqr.github.io", "?staticDemo=true"),
+  renderWithQuery: evaluate("sparring-ai-study-coach.onrender.com", "?staticDemo=1"),
+}));
+"""
+    completed = subprocess.run(
+        ["node", "--input-type=module", "--eval", script],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    result = json.loads(completed.stdout)
+    live_url = "https://sparring-ai-study-coach.onrender.com/"
+
+    assert result["pagesRoot"]["redirectedTo"] == live_url
+    assert result["pagesRoot"]["HOSTED_DEMO"] is False
+    assert result["pagesFallback"]["redirectedTo"] is None
+    assert result["pagesFallback"]["HOSTED_DEMO"] is True
+    assert result["pagesInvalidFallback"]["redirectedTo"] == live_url
+    assert result["pagesInvalidFallback"]["HOSTED_DEMO"] is False
+    assert result["renderWithQuery"]["redirectedTo"] is None
+    assert result["renderWithQuery"]["HOSTED_DEMO"] is False
+
+
 def text_pdf_bytes(text: str) -> bytes:
     escaped = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
     content = f"BT\n/F1 12 Tf\n72 720 Td\n({escaped}) Tj\nET\n".encode("latin-1")
@@ -117,8 +175,9 @@ process.stdout.write(JSON.stringify({ plan, lesson, listed, linked, cold }));
 
 def test_service_worker_uses_its_pages_scope():
     worker = (ROOT / "static" / "sw.js").read_text()
-    assert '"sparring-shell-v7"' in worker
+    assert '"sparring-shell-v8"' in worker
     assert 'new URL("./", self.registration.scope)' in worker
+    assert 'new URL("app.js?v=8", ROOT_URL).href' in worker
     assert 'caches.match(ROOT_URL)' in worker
     assert '"/index.html"' not in worker
     assert '"/app.js"' not in worker

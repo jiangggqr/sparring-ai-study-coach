@@ -7,9 +7,17 @@ const REVIEW_DAYS = [1, 3, 7];
 const LETTERS = ["A", "B", "C", "D"];
 const MIN_MATERIAL_CHARS = 40;
 const PDF_EXTRACTION_TIMEOUT_MS = 30 * 60_000;
-const HOSTED_DEMO =
-  window.location.hostname.endsWith(".github.io") ||
-  new URLSearchParams(window.location.search).has("staticDemo");
+const LIVE_AI_URL = "https://sparring-ai-study-coach.onrender.com/";
+const IS_GITHUB_PAGES = window.location.hostname.endsWith(".github.io");
+const STATIC_DEMO =
+  IS_GITHUB_PAGES &&
+  new URLSearchParams(window.location.search).get("staticDemo") === "1";
+
+if (IS_GITHUB_PAGES && !STATIC_DEMO) {
+  window.location.replace(LIVE_AI_URL);
+}
+
+const HOSTED_DEMO = STATIC_DEMO;
 
 let demoEnginePromise = null;
 

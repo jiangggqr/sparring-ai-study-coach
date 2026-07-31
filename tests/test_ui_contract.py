@@ -39,8 +39,13 @@ def test_recovery_and_offline_contract():
     assert (ROOT / "static" / "sw.js").exists()
 
 
-def test_hosted_demo_keeps_files_local_and_uses_relative_assets():
-    assert 'window.location.hostname.endsWith(".github.io")' in JS
+def test_pages_root_redirects_to_live_ai_and_static_fallback_is_explicit():
+    assert 'const LIVE_AI_URL = "https://sparring-ai-study-coach.onrender.com/";' in JS
+    assert 'const IS_GITHUB_PAGES = window.location.hostname.endsWith(".github.io");' in JS
+    assert '.get("staticDemo") === "1"' in JS
+    assert "if (IS_GITHUB_PAGES && !STATIC_DEMO)" in JS
+    assert "window.location.replace(LIVE_AI_URL)" in JS
+    assert "const HOSTED_DEMO = STATIC_DEMO;" in JS
     assert 'import("./demo-engine.mjs?v=7")' in JS
     assert "is read in this browser and is not uploaded" in JS
     assert 'href="/' not in HTML
@@ -67,7 +72,9 @@ def test_pdf_ready_state_does_not_require_a_second_paste():
 def test_readme_uses_public_demo_as_the_judge_link():
     readme = (ROOT / "README.md").read_text()
     normalized_readme = " ".join(readme.split())
-    assert "https://jiangggqr.github.io/sparring-ai-study-coach/" in readme
+    assert "https://sparring-ai-study-coach.onrender.com/" in readme
+    assert "https://jiangggqr.github.io/sparring-ai-study-coach/?staticDemo=1" in readme
+    assert "[Open the live AI demo](https://sparring-ai-study-coach.onrender.com/)" in readme
     assert "[http://localhost:8100]" not in readme
     assert "available only on the computer running it" in normalized_readme
 

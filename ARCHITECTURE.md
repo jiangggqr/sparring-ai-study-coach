@@ -23,11 +23,12 @@ flowchart LR
     I --> J["Reworded cold review"]
 ```
 
-The public GitHub Pages build is a judge-friendly adapter for the same interface. It
+The public Render service is the official live application. It serves the static
+interface and same-origin FastAPI endpoints, while all OpenAI calls remain on the server.
+The GitHub Pages root redirects to Render. Only the explicit `?staticDemo=1` Pages URL
 uses deterministic browser fixtures, vendored PDF.js, and a lazy vendored Tesseract.js
-OCR fallback, so it can be tried without distributing a model key. PDF bytes, rendered
-pages, extracted text, and practice generation stay on the device. The FastAPI path
-remains the real-model implementation and never silently falls back to fixtures.
+OCR fallback. In that fallback, PDF bytes, rendered pages, extracted text, and practice
+generation stay on the device. The real-model path never silently falls back to fixtures.
 
 ## Structured output contracts
 
@@ -58,7 +59,7 @@ same wording, change the item type, or change the source anchor.
 If extracted text exceeds the 24,000-character learning-material cap, the API truncates
 it and returns an explicit warning.
 
-The hosted Pages adapter applies the same 20 MB, 80-page, page-marker, and
+The explicit Pages fallback applies the same 20 MB, 80-page, page-marker, and
 24,000-character limits in the browser. It first uses the PDF text layer. A page with
 fewer than 20 selectable characters is rendered to a memory-bounded canvas and passed
 to one reusable Tesseract.js worker with English and Simplified Chinese data. Pages are

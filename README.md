@@ -2,7 +2,7 @@
 
 **The AI study coach that refuses to think for you.**
 
-[Open the live demo](https://jiangggqr.github.io/sparring-ai-study-coach/) ·
+[Open the live AI demo](https://sparring-ai-study-coach.onrender.com/) ·
 [View the source](https://github.com/jiangggqr/sparring-ai-study-coach)
 
 Sparring turns a learner's own PDF or pasted text into a short practice cycle:
@@ -35,9 +35,9 @@ The 1-3-7 schedule is an implementation heuristic, not a universal optimum.
 - One complete sentence (40 readable characters) is enough to begin; there is no
   200-character paste requirement after a PDF is ready.
 - Page markers are retained in the extracted study text.
-- In the hosted demo, PDF.js reads each page locally. Pages without enough selectable
-  text automatically fall back to self-hosted Tesseract.js OCR in English and Simplified
-  Chinese. The file and rendered pages are never uploaded.
+- In the live AI demo, text-layer extraction runs in FastAPI server memory. Pages without
+  enough selectable text automatically fall back to self-hosted Tesseract.js OCR in
+  English and Simplified Chinese in the browser. Uploaded files are not stored.
 - OCR runs one page at a time, shows page-level progress, can be cancelled, and reports
   partial results and low-confidence pages without erasing existing work.
 - In the FastAPI build, text-layer PDF bytes are processed in server memory and are not
@@ -47,9 +47,10 @@ The 1-3-7 schedule is an implementation heuristic, not a universal optimum.
 - Password-protected PDFs require an unlocked copy. Very low-resolution scans may still
   need a clearer export, and OCR text remains editable before practice begins.
 
-In the FastAPI build, extracted text is sent to the configured OpenAI model when AI
-steps run. In the hosted demo it remains local and uses deterministic practice fixtures.
-Browser progress, including extracted text, is saved in localStorage on that device.
+In the live FastAPI build, extracted text is sent to the configured OpenAI model when AI
+steps run. The explicit GitHub Pages fallback keeps extraction local and uses deterministic
+practice fixtures. Browser progress, including extracted text, is saved in localStorage
+on that device.
 
 ## Run locally
 
@@ -84,13 +85,21 @@ Fixture mode and real-model execution are separate code paths. A real-model fail
 never silently replaced with a fixture response, and there is no evaluator switch or
 mode badge in the learner UI.
 
-### Hosted demo
+### Live AI demo and deterministic fallback
 
-The GitHub Pages demo uses the same interaction flow with a deterministic in-browser
-practice engine, so judges can try it without a shared API key. PDF text extraction,
-scanned-page OCR, and practice state stay on that device in the hosted demo. The FastAPI
-application is the real-model path and uses server-side OpenAI Structured Outputs when
-configured locally or on a container host.
+The official live demo runs the FastAPI application and uses GPT-5.6-sol through the
+server-side OpenAI Responses API:
+
+https://sparring-ai-study-coach.onrender.com/
+
+GitHub Pages now redirects to that live AI application. A deterministic browser-only
+fallback remains available explicitly at:
+
+https://jiangggqr.github.io/sparring-ai-study-coach/?staticDemo=1
+
+The fallback uses the same interaction flow without a model key. PDF extraction,
+scanned-page OCR, practice generation, and practice state remain on that device. It is
+for deterministic fallback and test use, not the official AI demo.
 
 ## AI boundary
 
@@ -152,16 +161,18 @@ cancellation recovery, and 390 px mobile reflow.
 
 ## Deploy
 
-### Public GitHub Pages demo
+### Public live AI demo
 
-The public, no-sign-in demo is:
+The official public, no-sign-in FastAPI and GPT-5.6-sol demo is:
 
-https://jiangggqr.github.io/sparring-ai-study-coach/
+https://sparring-ai-study-coach.onrender.com/
 
-It extracts PDF text and recognizes scanned pages locally, then uses deterministic
-in-browser practice responses so judges can complete the flow without a shared API key.
+The GitHub Pages root redirects to the live AI demo. For an explicitly selected
+deterministic fallback, use:
 
-### FastAPI real-model deployment
+https://jiangggqr.github.io/sparring-ai-study-coach/?staticDemo=1
+
+### FastAPI deployment
 
 The repository includes:
 
