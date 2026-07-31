@@ -1,109 +1,134 @@
 1
-00:00:00,000 --> 00:00:05,000
-AI can give you a polished answer
+00:00:00,000 --> 00:00:02,528
+AI can produce a polished answer
 in seconds.
 
 2
-00:00:05,000 --> 00:00:09,000
+00:00:02,563 --> 00:00:04,359
 But here's the uncomfortable question:
 
 3
-00:00:09,000 --> 00:00:14,000
-did you learn it, or did the AI
-simply perform the thinking for you?
+00:00:04,394 --> 00:00:08,753
+did I learn it, or did the AI simply do
+the thinking for me?
 
 4
-00:00:14,000 --> 00:00:17,500
+00:00:09,238 --> 00:00:11,258
 Sparring changes that contract.
 
 5
-00:00:17,500 --> 00:00:23,000
-I upload the PDF I actually need
-to study, and the AI
+00:00:11,293 --> 00:00:16,395
+I upload the PDF I actually need -
+even a scanned page.
 
 6
-00:00:23,000 --> 00:00:29,000
-turns only that material into
-three concepts and one clear target.
+00:00:16,430 --> 00:00:18,963
+Private OCR recovers the text.
 
 7
-00:00:29,000 --> 00:00:34,000
-Before it explains anything,
-I make a quick prediction.
+00:00:18,998 --> 00:00:25,128
+Then GPT-5.6-sol builds a three-concept
+map from that material alone.
 
 8
-00:00:34,000 --> 00:00:38,500
-It isn't a grade or an entrance test.
+00:00:25,613 --> 00:00:29,044
+Before any explanation,
+I make a quick prediction.
 
 9
-00:00:38,500 --> 00:00:44,000
-It gives me something real to compare
-with this short, source-grounded explanation.
+00:00:29,079 --> 00:00:30,777
+It isn't a grade.
 
 10
-00:00:44,000 --> 00:00:50,000
-Now I answer before feedback,
-and I have to say how confident I am.
+00:00:30,812 --> 00:00:35,975
+It creates a real attempt I can compare
+with one focused explanation...
 
 11
-00:00:50,000 --> 00:00:54,000
-Here I was very sure - and wrong.
+00:00:36,010 --> 00:00:37,708
+...and its source anchor.
 
 12
-00:00:54,000 --> 00:00:59,000
-Sparring shows why my choice fails
-and why the material supports
+00:00:38,193 --> 00:00:41,275
+Then I retrieve before feedback
+and rate my confidence.
 
 13
-00:00:59,000 --> 00:01:04,500
-a different relationship. That mismatch
-is more useful than a score alone.
+00:00:41,310 --> 00:00:44,003
+Here I'm very sure - and wrong.
 
 14
-00:01:04,500 --> 00:01:08,500
-Next, I teach the idea back
-in two lines.
+00:00:44,038 --> 00:00:47,509
+Sparring explains why my choice
+conflicts with the source...
 
 15
-00:01:08,500 --> 00:01:15,000
-My first version only lists the parts,
-so the AI asks for one missing connection.
+00:00:47,544 --> 00:00:50,626
+...and why another relationship
+is supported.
 
 16
-00:01:15,000 --> 00:01:19,000
-I revise it;
-the explanation stays mine.
+00:00:50,661 --> 00:00:54,522
+That mismatch tells the coach
+more than a score alone.
 
 17
-00:01:19,000 --> 00:01:24,000
-Then I come back later.
-The same objective returns in new wording,
+00:00:55,007 --> 00:00:58,123
+Next, I teach the idea back
+in my own words.
 
 18
-00:01:24,000 --> 00:01:30,000
-with no hint before I commit. A pass
-schedules day three, then day seven.
+00:00:58,158 --> 00:01:02,325
+If I only list parts, the AI asks
+for the missing relationship.
 
 19
-00:01:30,000 --> 00:01:35,000
-We call this practice evidence -
-not permanent mastery.
+00:01:02,360 --> 00:01:04,776
+I revise it; the explanation stays mine.
 
 20
-00:01:35,000 --> 00:01:40,000
-FastAPI keeps the model key
-on the server.
+00:01:05,261 --> 00:01:08,101
+Later, the objective returns
+in new wording...
 
 21
-00:01:40,000 --> 00:01:46,000
-Structured outputs and source-anchor checks
-keep every generated step
+00:01:08,136 --> 00:01:10,257
+...with no hints before I commit.
 
 22
-00:01:46,000 --> 00:01:50,000
-inside my uploaded material.
+00:01:10,292 --> 00:01:12,772
+Passing schedules day three,
+then day seven.
 
 23
-00:01:50,000 --> 00:01:57,000
-Sparring. The AI study coach
-that refuses to think for you.
+00:01:12,807 --> 00:01:16,006
+Sparring records practice evidence,
+not permanent mastery.
+
+24
+00:01:16,491 --> 00:01:21,425
+In the live demo, FastAPI keeps
+the API key on the server.
+
+25
+00:01:21,460 --> 00:01:24,323
+Structured Outputs enforce
+the learning contract...
+
+26
+00:01:24,358 --> 00:01:28,464
+...and every explanation and question
+includes a verified anchor...
+
+27
+00:01:28,499 --> 00:01:30,535
+...from the uploaded material.
+
+28
+00:01:31,020 --> 00:01:31,728
+Sparring:
+
+29
+00:01:31,763 --> 00:01:35,446
+the AI study coach that refuses
+to think for you.

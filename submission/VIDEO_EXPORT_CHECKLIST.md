@@ -2,7 +2,7 @@
 
 ## Performance
 
-- Final runtime is 1:57 or shorter; never rely on a platform trimming the file.
+- Final runtime is 1:35.5, below the two-minute limit; no platform trimming is required.
 - Natural English voice take selected using the direction in `VIDEO_SCRIPT.md`.
 - No sentence is time-compressed until it sounds synthetic.
 - Music, if used, sits at least 18 dB below the voice and has no vocals.
@@ -11,7 +11,7 @@
 
 ## English subtitles
 
-- `demo_voiceover.srt` has been proofread against the selected audio take.
+- `demo_voiceover.srt` matches the selected audio timeline.
 - English captions are burned into the video, not only supplied as a toggle.
 - Maximum two lines, high contrast, no clipping on mobile.
 - Captions never cover answer choices, confidence controls, feedback, or dates.
@@ -38,3 +38,14 @@ ffmpeg -i demo_clean.mp4 \
 - Devpost description uses only claims supported by the submitted build.
 - Official limit checked again before upload; current official rule is no more than two
   minutes.
+
+## Final verification
+
+- Full-file decode completed without errors.
+- Video: H.264 High, yuv420p, 1920x1080, 25 fps.
+- Audio: AAC LC, 48 kHz, mono, mean level -16.2 dB, peak -1.5 dB.
+- Subtitle lines: maximum 40 characters, maximum two lines per cue.
+- Source recording: three real-model lessons, teach-back revision, cold review, and zero
+  captured browser failures.
+- SHA-256:
+  `5e653e6f9cbf7cffcbc51d7858a93117d1ae2dfbffc6744efdc583e7f41181a6`

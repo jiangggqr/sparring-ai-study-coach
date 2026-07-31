@@ -1,24 +1,26 @@
-AI can give you a polished answer in seconds. But here's the uncomfortable question:
-did you learn it, or did the AI simply perform the thinking for you?
+AI can produce a polished answer in seconds. But here's the uncomfortable question:
+did I learn it, or did the AI simply do the thinking for me?
 
-Sparring changes that contract. I upload the PDF I actually need to study, and the AI
-turns only that material into three concepts and one clear target.
+Sparring changes that contract. I upload the PDF I actually need—even a scanned page.
+Private OCR recovers the text, then GPT-5.6-sol builds a three-concept map from that
+material alone.
 
-Before it explains anything, I make a quick prediction. It isn't a grade or an entrance
-test. It gives me something real to compare with this short, source-grounded explanation.
+Before any explanation, I make a quick prediction. It isn't a grade. It creates a real
+attempt I can compare with one focused explanation and its source anchor.
 
-Now I answer before feedback, and I have to say how confident I am. Here I was very sure
-- and wrong. Sparring shows why my choice fails and why the material supports a different
-relationship. That mismatch is more useful than a score alone.
+Then I retrieve before feedback and rate my confidence. Here I'm very sure—and wrong.
+Sparring explains why my choice conflicts with the source, and why another relationship
+is supported. That mismatch tells the coach more than a score alone.
 
-Next, I teach the idea back in two lines. My first version only lists the parts, so the AI
-asks for one missing connection. I revise it; the explanation stays mine.
+Next, I teach the idea back in my own words. If I only list parts, the AI asks for the
+missing relationship. I revise it; the explanation stays mine.
 
-Then I come back later. The same objective returns in new wording, with no hint before I
-commit. A pass schedules day three, then day seven. We call this practice evidence - not
-permanent mastery.
+Later, the objective returns in new wording, with no hints before I commit. Passing
+schedules day three, then day seven. Sparring records practice evidence, not permanent
+mastery.
 
-FastAPI keeps the model key on the server. Structured outputs and source-anchor checks keep
-every generated step inside my uploaded material.
+In the live demo, FastAPI keeps the API key on the server. Structured Outputs enforce the
+learning contract, and every explanation and question includes a verified anchor from
+the uploaded material.
 
-Sparring. The AI study coach that refuses to think for you.
+Sparring: the AI study coach that refuses to think for you.

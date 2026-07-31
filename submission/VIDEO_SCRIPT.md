@@ -1,107 +1,93 @@
-# Sparring demo video - 1:57 production script
+# Sparring demo video - final 1:35 production script
+
+## Final deliverables
+
+- Captioned MP4: `submission/video/output/sparring-devpost-demo-captioned.mp4`
+- Standalone captions: `submission/video/output/sparring-devpost-demo.srt`
+- Public download release:
+  https://github.com/jiangggqr/sparring-ai-study-coach/releases/tag/devpost-submission-v1
+
+The final video is 95.5 seconds, 1920x1080, H.264/AAC, and records the public Render
+GPT-5.6-sol application. The source run used a pure scanned PDF and completed browser
+OCR, a real model-generated three-concept map, three lessons, a teach-back revision, and
+a delayed cold review without browser failures.
 
 ## Voice direction
 
-Use a warm, intelligent, conversational English voice. The speaker should sound like a
-student showing a useful discovery to another student - not an announcer reading product
-copy.
+The narration uses a warm, conversational English OpenAI TTS voice. It should sound like
+a student sharing a useful discovery, not an announcer. The closing card discloses:
+"Voiceover generated with OpenAI TTS."
 
-- Pace: about 125-135 words per minute.
-- Delivery: small natural pauses after the opening question, before "Here's the
-  difference," and before the final tagline.
-- Emotion: curious in the opening, lightly surprised at the high-confidence mistake, calm
-  and assured during the technical proof.
-- Avoid: exaggerated trailer voice, identical sentence rhythm, over-enunciation, or a
-  synthetic upward inflection at every sentence end.
-- Record two takes. Prefer the take with more natural breaths even if it is slightly less
-  polished.
+## Final narration and picture
 
-## Shot and narration timeline
+### 0:00-0:09 - The problem
 
-### 0:00-0:11 - The problem
+**Picture:** Branded opening card, then the live upload screen.
 
-**Picture:** Clean title, then the empty PDF upload screen.
+> AI can produce a polished answer in seconds. But here's the uncomfortable question:
+> did I learn it, or did the AI simply do the thinking for me?
 
-**Voice:**
+### 0:09-0:26 - Upload, OCR, and map
 
-> AI can give you a polished answer in seconds. But here's the uncomfortable question:
-> did you learn it, or did the AI simply perform the thinking for you?
+**Picture:** Upload a pure scanned PDF, show OCR-ready state, then the real generated
+three-concept map.
 
-### 0:11-0:23 - Upload and plan
+> Sparring changes that contract. I upload the PDF I actually need - even a scanned
+> page. Private OCR recovers the text, then GPT-5.6-sol builds a three-concept map from
+> that material alone.
 
-**Picture:** Upload a scanned PDF. Briefly show private OCR progress, then the PDF-ready
-state, three-concept map, and observable target.
+### 0:26-0:38 - Prediction and explanation
 
-**Voice:**
+**Picture:** Inspect the map, type a prediction, then reveal the focused explanation and
+verified source anchor.
 
-> Sparring changes that contract. I upload the PDF I actually need to study—even a
-> scanned copy—and it reads the page privately, then turns only that material into three
-> concepts and one clear target.
+> Before any explanation, I make a quick prediction. It isn't a grade. It creates a real
+> attempt I can compare with one focused explanation and its source anchor.
 
-### 0:23-0:39 - Prediction and explanation
+### 0:38-0:55 - Answer and confidence
 
-**Picture:** Type a short prediction. Commit it. Reveal the prediction beside the concise
-explanation and source anchor.
+**Picture:** Select a wrong option with confidence 5, lock it, and show the
+high-confidence mismatch feedback.
 
-**Voice:**
+> Then I retrieve before feedback and rate my confidence. Here I'm very sure - and wrong.
+> Sparring explains why my choice conflicts with the source, and why another relationship
+> is supported. That mismatch tells the coach more than a score alone.
 
-> Before it explains anything, I make a quick prediction. It isn't a grade or an entrance
-> test. It gives me something real to compare with this short, source-grounded explanation.
+### 0:55-1:05 - Teach-back revision
 
-### 0:39-1:02 - Answer and confidence
+**Picture:** Submit a list-like explanation, show "Revise one connection," then type the
+missing relationship.
 
-**Picture:** Pick a wrong option, select confidence 5, lock it, then show both rationales.
+> Next, I teach the idea back in my own words. If I only list parts, the AI asks for the
+> missing relationship. I revise it; the explanation stays mine.
 
-**Voice:**
+### 1:05-1:16 - Delayed cold review
 
-> Now I answer before feedback, and I have to say how confident I am. Here I was very sure
-> - and wrong. Sparring shows why my choice fails and why the material supports a different
-> relationship. That mismatch is more useful than a score alone.
+**Picture:** Show the completed-session dashboard, advance the explicit demo day, and
+open a reworded cold-review item.
 
-### 1:02-1:22 - Teach-back revision
+> Later, the objective returns in new wording, with no hints before I commit. Passing
+> schedules day three, then day seven. Sparring records practice evidence, not permanent
+> mastery.
 
-**Picture:** Submit a list-like explanation, show revision feedback, then improve it with a
-real because/so connection.
+### 1:16-1:31 - Technical proof
 
-**Voice:**
+**Picture:** Two branded architecture cards: bounded Responses API flow and source
+integrity guardrails.
 
-> Next, I teach the idea back in two lines. My first version only lists the parts, so the
-> AI asks for one missing connection. I revise it; the explanation stays mine.
+> In the live demo, FastAPI keeps the API key on the server. Structured Outputs enforce
+> the learning contract, and every explanation and question includes a verified anchor
+> from the uploaded material.
 
-### 1:22-1:43 - Delayed cold review
+### 1:31-1:35 - Close
 
-**Picture:** Finish the session, advance the explicit demo date, and begin the cold review.
-Answer one reworded item before showing the result.
+**Picture:** Sparring wordmark, live demo, source link, and AI-voice disclosure.
 
-**Voice:**
-
-> Then I come back later. The same objective returns in new wording, with no hint before I
-> commit. A pass schedules day three, then day seven. We call this practice evidence - not
-> permanent mastery.
-
-### 1:43-1:53 - Technical proof
-
-**Picture:** Brief split view: the public GitHub Pages demo, the source-anchor schema,
-and passing tests.
-
-**Voice:**
-
-> The public demo reads my PDF locally. In the real-model build, FastAPI keeps the key on
-> the server, while structured outputs and source-anchor checks keep each step grounded.
-
-### 1:53-1:57 - Close
-
-**Picture:** Sparring wordmark and tagline.
-
-**Voice:**
-
-> Sparring. The AI study coach that refuses to think for you.
+> Sparring: the AI study coach that refuses to think for you.
 
 ## Caption treatment
 
-- Burn the supplied `demo_voiceover.srt` into the final export.
-- White semibold sans-serif, 52-60 px at 1080p, with a dark 70% background box.
-- Maximum two lines; keep captions inside the lower 80% safe area.
-- Do not place captions over selected answers or feedback text; move them slightly upward
-  during those shots.
-- Also upload the standalone `.srt` beside the video when the hosting platform allows it.
+- English captions are burned into the MP4 and supplied separately as SRT.
+- White sans-serif text uses a high-contrast dark background.
+- Maximum two lines and 40 characters per rendered line.
+- Captions remain inside the 1080p safe area.
