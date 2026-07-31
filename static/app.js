@@ -14,7 +14,7 @@ const HOSTED_DEMO =
 let demoEnginePromise = null;
 
 function demoEngine() {
-  if (!demoEnginePromise) demoEnginePromise = import("./demo-engine.mjs?v=6");
+  if (!demoEnginePromise) demoEnginePromise = import("./demo-engine.mjs?v=7");
   return demoEnginePromise;
 }
 
@@ -756,7 +756,21 @@ function renderPlan() {
           <span class="concept-index">${index + 1}</span>
           <div>
             <h3>${esc(concept.name)}</h3>
+            ${
+              concept.plain_definition
+                ? `<p class="concept-definition">${esc(concept.plain_definition)}</p>`
+                : ""
+            }
             <p>${esc(concept.why)}</p>
+            ${
+              concept.depends_on?.length
+                ? `<p class="microcopy"><strong>Builds from:</strong> ${esc(concept.depends_on.join(", "))}${
+                    concept.relationship_to_dependencies
+                      ? ` · ${esc(concept.relationship_to_dependencies)}`
+                      : ""
+                  }</p>`
+                : ""
+            }
             <details class="anchor">
               <summary>View material anchor</summary>
               <blockquote>${esc(concept.source_anchor)}</blockquote>
@@ -1144,6 +1158,9 @@ function renderTeachback(error = null) {
   const assessment = progress.teachbackAssessment;
   const canRevise = assessment && !assessment.linked && progress.teachbackAttempts < 2;
   const completeReady = assessment && (assessment.linked || progress.teachbackAttempts >= 2);
+  const relationshipCheckNote = HOSTED_DEMO
+    ? "This preview uses a deterministic relationship check for offline rehearsal."
+    : "The AI compares this explanation with a verified source anchor. It is practice feedback, not an objective diagnosis of understanding.";
 
   setView(`
     <section class="screen narrow" aria-labelledby="screen-title">
@@ -1188,10 +1205,7 @@ function renderTeachback(error = null) {
         </div>
         ${error ? errorPanel(error) : ""}
       </form>
-      <p class="microcopy">
-        This is a heuristic relationship check informed by the relational-versus-listed
-        distinction. It is practice feedback, not an objective diagnosis of understanding.
-      </p>
+      <p class="microcopy">${esc(relationshipCheckNote)}</p>
     </section>`);
 
   if (completeReady) {

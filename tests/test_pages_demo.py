@@ -117,7 +117,7 @@ process.stdout.write(JSON.stringify({ plan, lesson, listed, linked, cold }));
 
 def test_service_worker_uses_its_pages_scope():
     worker = (ROOT / "static" / "sw.js").read_text()
-    assert '"sparring-shell-v6"' in worker
+    assert '"sparring-shell-v7"' in worker
     assert 'new URL("./", self.registration.scope)' in worker
     assert 'caches.match(ROOT_URL)' in worker
     assert '"/index.html"' not in worker

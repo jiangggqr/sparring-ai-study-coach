@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import logging
 import secrets
+import threading
+import time
+from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -32,10 +35,31 @@ from app.schemas import (
 logger = logging.getLogger("sparring")
 
 
+class SessionRateLimiter:
+    def __init__(self, limit: int, window_seconds: int = 60):
+        self.limit = max(1, limit)
+        self.window_seconds = window_seconds
+        self._events: dict[str, deque[float]] = defaultdict(deque)
+        self._lock = threading.Lock()
+
+    def allow(self, key: str) -> bool:
+        now = time.monotonic()
+        threshold = now - self.window_seconds
+        with self._lock:
+            events = self._events[key]
+            while events and events[0] <= threshold:
+                events.popleft()
+            if len(events) >= self.limit:
+                return False
+            events.append(now)
+            return True
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     cfg = settings or Settings.from_env()
     store = EvidenceStore(cfg.database_path)
     engine = build_engine(cfg)
+    ai_rate_limiter = SessionRateLimiter(cfg.ai_requests_per_minute)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -77,9 +101,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "camera=(), microphone=(), geolocation=(), payment=()"
         )
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; img-src 'self' data:; "
-            "style-src 'self'; script-src 'self'; "
-            "connect-src 'self'; object-src 'none'; frame-ancestors 'none'; "
+            "default-src 'self'; img-src 'self' data: blob:; "
+            "style-src 'self'; script-src 'self' 'wasm-unsafe-eval'; "
+            "worker-src 'self' blob:; connect-src 'self'; "
+            "object-src 'none'; frame-ancestors 'none'; "
             "base-uri 'self'; form-action 'self'"
         )
         return response
@@ -133,6 +158,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         return material
 
+    def enforce_ai_rate_limit(request: Request) -> None:
+        if cfg.mode != "real":
+            return
+        forwarded = request.headers.get("x-forwarded-for", "")
+        remote = forwarded.split(",", 1)[0].strip()
+        if not remote and request.client:
+            remote = request.client.host
+        key = f"{remote or 'unknown'}:{request.state.session_id}"
+        if not ai_rate_limiter.allow(key):
+            raise EngineError(
+                code="rate_limited",
+                public_message=(
+                    "Too many AI steps were requested at once. Your progress is safe; "
+                    "wait one minute, then retry."
+                ),
+                log_message=f"AI rate limit exceeded for {remote or 'unknown'}",
+                status_code=429,
+                retryable=True,
+            )
+
     @api.get("/api/health", response_model=HealthOut)
     def health() -> HealthOut:
         return HealthOut(
@@ -151,16 +196,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return extract_pdf_material(data, filename, cfg)
 
     @api.post("/api/plan", response_model=StudyPlan)
-    def plan(body: PlanIn) -> StudyPlan:
+    def plan(body: PlanIn, request: Request) -> StudyPlan:
+        enforce_ai_rate_limit(request)
         return engine.plan(material_or_400(body.material))
 
     @api.post("/api/lesson", response_model=LessonOutput)
-    def lesson(body: LessonIn) -> LessonOutput:
+    def lesson(body: LessonIn, request: Request) -> LessonOutput:
+        enforce_ai_rate_limit(request)
         material = material_or_400(body.material)
         return engine.lesson(material, body.concept.strip())
 
     @api.post("/api/teachback", response_model=TeachbackOutput)
-    def teachback(body: TeachbackIn) -> TeachbackOutput:
+    def teachback(body: TeachbackIn, request: Request) -> TeachbackOutput:
+        enforce_ai_rate_limit(request)
         material = material_or_400(body.material)
         answer = body.answer.strip()
         if len(answer) < 10:
@@ -168,7 +216,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return engine.teachback(material, body.concept.strip(), answer)
 
     @api.post("/api/cold", response_model=ColdQuiz)
-    def cold(body: ColdIn) -> ColdQuiz:
+    def cold(body: ColdIn, request: Request) -> ColdQuiz:
+        enforce_ai_rate_limit(request)
         material = material_or_400(body.material)
         return engine.cold(material, body.quiz)
 

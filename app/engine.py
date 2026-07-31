@@ -65,6 +65,37 @@ def _validate_lesson_grounding(lesson: LessonOutput, material: str) -> LessonOut
     return lesson
 
 
+def _normalize_answer_positions(lesson: LessonOutput) -> LessonOutput:
+    if len({item.answer for item in lesson.quiz}) == len(lesson.quiz):
+        return lesson
+    target_positions = (1, 2, 0)
+    normalized: list[QuizItem] = []
+    for question, target in zip(lesson.quiz, target_positions, strict=True):
+        rows = list(zip(question.options, question.why, question.tag, strict=True))
+        correct = rows.pop(question.answer)
+        rows.insert(target, correct)
+        normalized.append(
+            QuizItem(
+                kind=question.kind,
+                stem=question.stem,
+                options=[row[0] for row in rows],
+                answer=target,
+                why=[row[1] for row in rows],
+                tag=[row[2] for row in rows],
+                source_anchor=question.source_anchor,
+            )
+        )
+    return lesson.model_copy(update={"quiz": normalized})
+
+
+def _validate_teachback_grounding(
+    feedback: TeachbackOutput,
+    material: str,
+) -> TeachbackOutput:
+    _require_grounded(feedback.source_anchor, material)
+    return feedback
+
+
 def _validate_cold_quiz(
     original: list[QuizItem],
     cold_quiz: ColdQuiz,
@@ -111,10 +142,16 @@ class FixtureEngine:
         return _validate_plan_grounding(fixture_plan(material), material)
 
     def lesson(self, material: str, concept: str) -> LessonOutput:
-        return _validate_lesson_grounding(fixture_lesson(material, concept), material)
+        return _validate_lesson_grounding(
+            _normalize_answer_positions(fixture_lesson(material, concept)),
+            material,
+        )
 
     def teachback(self, material: str, concept: str, answer: str) -> TeachbackOutput:
-        return fixture_teachback(material, concept, answer)
+        return _validate_teachback_grounding(
+            fixture_teachback(material, concept, answer),
+            material,
+        )
 
     def cold(self, material: str, quiz: list[QuizItem]) -> ColdQuiz:
         return _validate_cold_quiz(quiz, fixture_cold(quiz), material)
@@ -123,6 +160,8 @@ class FixtureEngine:
 class RealEngine:
     def __init__(self, settings: Settings):
         self.model = settings.model
+        self.timeout_seconds = settings.ai_timeout_seconds
+        self.max_output_tokens = settings.ai_max_output_tokens
         self.api_key = os.getenv("OPENAI_API_KEY", "").strip()
         self._client: OpenAI | None = None
 
@@ -142,7 +181,11 @@ class RealEngine:
                 retryable=False,
             )
         if self._client is None:
-            self._client = OpenAI(api_key=self.api_key, timeout=60, max_retries=1)
+            self._client = OpenAI(
+                api_key=self.api_key,
+                timeout=self.timeout_seconds,
+                max_retries=1,
+            )
         return self._client
 
     def parse(self, schema: type[T], system: str, user: str) -> T:
@@ -154,6 +197,7 @@ class RealEngine:
                     {"role": "user", "content": user},
                 ],
                 text_format=schema,
+                max_output_tokens=self.max_output_tokens,
                 store=False,
             )
             parsed = response.output_parsed
@@ -189,13 +233,19 @@ class RealEngine:
             prompts.LESSON_SYSTEM,
             prompts.lesson_user(material, concept),
         )
-        return _validate_lesson_grounding(result, material)
+        return _validate_lesson_grounding(
+            _normalize_answer_positions(result),
+            material,
+        )
 
     def teachback(self, material: str, concept: str, answer: str) -> TeachbackOutput:
-        return self.parse(
-            TeachbackOutput,
-            prompts.TEACHBACK_SYSTEM,
-            prompts.teachback_user(material, concept, answer),
+        return _validate_teachback_grounding(
+            self.parse(
+                TeachbackOutput,
+                prompts.TEACHBACK_SYSTEM,
+                prompts.teachback_user(material, concept, answer),
+            ),
+            material,
         )
 
     def cold(self, material: str, quiz: list[QuizItem]) -> ColdQuiz:

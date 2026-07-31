@@ -41,7 +41,7 @@ def test_recovery_and_offline_contract():
 
 def test_hosted_demo_keeps_files_local_and_uses_relative_assets():
     assert 'window.location.hostname.endsWith(".github.io")' in JS
-    assert 'import("./demo-engine.mjs?v=6")' in JS
+    assert 'import("./demo-engine.mjs?v=7")' in JS
     assert "is read in this browser and is not uploaded" in JS
     assert 'href="/' not in HTML
     assert 'src="/' not in HTML

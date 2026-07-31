@@ -8,8 +8,14 @@ services:
       - key: OPENAI_API_KEY
         sync: false
       - key: SPARRING_MODEL
-        value: gpt-5.6
+        value: gpt-5.6-sol
       - key: SPARRING_MODE
         value: real
+      - key: SPARRING_AI_TIMEOUT_SECONDS
+        value: "90"
+      - key: SPARRING_AI_MAX_OUTPUT_TOKENS
+        value: "5000"
+      - key: SPARRING_AI_REQUESTS_PER_MINUTE
+        value: "20"
       - key: SPARRING_DATABASE_PATH
         value: /tmp/sparring.sqlite3

@@ -74,6 +74,12 @@ def test_plan_has_three_unique_grounded_concepts(client: TestClient, material: s
     assert len(payload["concepts"]) == 3
     assert len({item["name"] for item in payload["concepts"]}) == 3
     for concept in payload["concepts"]:
+        assert concept["plain_definition"]
+        assert isinstance(concept["depends_on"], list)
+        if concept["depends_on"]:
+            assert concept["relationship_to_dependencies"]
+        else:
+            assert concept["relationship_to_dependencies"] is None
         assert concept["source_anchor"] in material.replace("\n", " ") or (
             " ".join(concept["source_anchor"].split()) in " ".join(material.split())
         )
@@ -164,9 +170,55 @@ def test_lesson_schema_alignment_and_grounding(client: TestClient, material: str
         assert len(question["why"]) == 4
         assert len(question["tag"]) == 4
         assert question["tag"][question["answer"]] == ""
+        assert all(
+            tag.strip()
+            for index, tag in enumerate(question["tag"])
+            if index != question["answer"]
+        )
+        assert len({option.casefold().strip() for option in question["options"]}) == 4
+        assert not any(
+            phrase in option.casefold()
+            for phrase in (
+                "the material presents",
+                "the material uses",
+                "without adding outside facts",
+            )
+            for option in question["options"]
+        )
         assert " ".join(question["source_anchor"].split()) in " ".join(material.split())
         option_lengths = [len(option) for option in question["options"]]
         assert max(option_lengths) / min(option_lengths) < 1.7
+
+
+def test_output_language_hint_tracks_english_and_chinese_material():
+    from app.prompts import language_hint
+
+    assert language_hint("Retrieval practice compares an attempted answer with the source.")
+    assert language_hint("这是中文学习材料，用于解释概念之间的因果关系。") == "Simplified Chinese"
+
+
+def test_sample_lessons_use_three_distinct_diagnostic_question_sets(
+    client: TestClient,
+    material: str,
+):
+    plan = client.post("/api/plan", json={"material": material}).json()
+    for concept in plan["concepts"]:
+        response = client.post(
+            "/api/lesson",
+            json={"material": material, "concept": concept["name"]},
+        )
+        assert response.status_code == 200
+        lesson = response.json()
+        option_sets = [
+            tuple(option.casefold().strip() for option in item["options"])
+            for item in lesson["quiz"]
+        ]
+        assert len(set(option_sets)) == 3
+        for item in lesson["quiz"]:
+            correct = item["options"][item["answer"]]
+            assert " ".join(correct.split()).casefold() != " ".join(
+                item["source_anchor"].split()
+            ).casefold()
 
 
 def test_teachback_requires_content_and_distinguishes_linked(client: TestClient, material: str):
@@ -190,6 +242,7 @@ def test_teachback_requires_content_and_distinguishes_linked(client: TestClient,
     assert listed.status_code == 200
     assert listed.json()["linked"] is False
     assert listed.json()["repair_prompt"]
+    assert " ".join(listed.json()["source_anchor"].split()) in " ".join(material.split())
 
     linked = client.post(
         "/api/teachback",
@@ -205,6 +258,7 @@ def test_teachback_requires_content_and_distinguishes_linked(client: TestClient,
     assert linked.status_code == 200
     assert linked.json()["linked"] is True
     assert linked.json()["repair_prompt"] is None
+    assert " ".join(linked.json()["source_anchor"].split()) in " ".join(material.split())
 
 
 def test_cold_review_is_reworded_and_preserves_anchors(client: TestClient, material: str):
@@ -275,4 +329,7 @@ def test_static_shell_has_security_headers(client: TestClient):
     assert response.status_code == 200
     assert response.headers["x-frame-options"] == "DENY"
     assert "script-src 'self'" in response.headers["content-security-policy"]
+    assert "'wasm-unsafe-eval'" in response.headers["content-security-policy"]
+    assert "worker-src 'self' blob:" in response.headers["content-security-policy"]
+    assert "img-src 'self' data: blob:" in response.headers["content-security-policy"]
     assert "unsafe-inline" not in response.headers["content-security-policy"]

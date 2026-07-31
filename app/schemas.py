@@ -11,9 +11,12 @@ class StrictModel(BaseModel):
 
 class ConceptPlan(StrictModel):
     name: str = Field(min_length=2, max_length=120)
+    plain_definition: str = Field(min_length=8, max_length=360)
     why: str = Field(min_length=2, max_length=240)
     predict_q: str = Field(min_length=5, max_length=360)
-    source_anchor: str = Field(min_length=8, max_length=240)
+    depends_on: list[str] = Field(max_length=2)
+    relationship_to_dependencies: str | None = Field(max_length=240)
+    source_anchor: str = Field(min_length=8, max_length=180)
 
 
 class StudyPlan(StrictModel):
@@ -25,6 +28,22 @@ class StudyPlan(StrictModel):
         names = [item.name.casefold().strip() for item in self.concepts]
         if len(set(names)) != 3:
             raise ValueError("concept names must be unique")
+        name_by_key = {
+            concept.name.casefold().strip(): concept.name for concept in self.concepts
+        }
+        for index, concept in enumerate(self.concepts):
+            earlier = set(names[:index])
+            dependency_keys = [item.casefold().strip() for item in concept.depends_on]
+            if len(set(dependency_keys)) != len(dependency_keys):
+                raise ValueError("concept dependencies must be unique")
+            if any(key not in name_by_key for key in dependency_keys):
+                raise ValueError("concept dependencies must name concepts in this plan")
+            if any(key not in earlier for key in dependency_keys):
+                raise ValueError("concepts may depend only on earlier concepts")
+            if dependency_keys and not (concept.relationship_to_dependencies or "").strip():
+                raise ValueError("a dependency requires an explicit relationship")
+            if not dependency_keys and concept.relationship_to_dependencies is not None:
+                raise ValueError("a root concept cannot claim a dependency relationship")
         return self
 
 
@@ -45,9 +64,15 @@ class QuizItem(StrictModel):
         return value
 
     @model_validator(mode="after")
-    def correct_option_has_no_misconception_tag(self):
+    def validate_options_and_misconception_tags(self):
+        if len({item.casefold().strip() for item in self.options}) != 4:
+            raise ValueError("question options must be unique")
         if self.tag[self.answer].strip():
             raise ValueError("the correct option must have an empty misconception tag")
+        if any(
+            not tag.strip() for index, tag in enumerate(self.tag) if index != self.answer
+        ):
+            raise ValueError("every distractor needs a misconception tag")
         return self
 
 
@@ -65,6 +90,8 @@ class LessonOutput(StrictModel):
             "application",
         ]:
             raise ValueError("quiz must test definition, mechanism, then application")
+        if len({item.stem.casefold().strip() for item in self.quiz}) != 3:
+            raise ValueError("quiz stems must be unique")
         return self
 
 
@@ -74,6 +101,17 @@ class TeachbackOutput(StrictModel):
     missing: list[str] = Field(max_length=4)
     feedback: str = Field(min_length=5, max_length=500)
     repair_prompt: str | None
+    source_anchor: str = Field(min_length=8, max_length=180)
+
+    @model_validator(mode="after")
+    def repair_matches_relationship_judgment(self):
+        if self.linked and self.repair_prompt is not None:
+            raise ValueError("a linked explanation must not receive a repair prompt")
+        if not self.linked and not (self.repair_prompt or "").strip():
+            raise ValueError("an unlinked explanation requires one focused repair prompt")
+        if not self.covered:
+            raise ValueError("feedback must identify at least one evidenced point")
+        return self
 
 
 class ColdQuiz(StrictModel):
