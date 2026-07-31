@@ -16,9 +16,7 @@ learning action with the learner.
 
 The public Render application is the official demo. It runs the FastAPI server and uses
 GPT-5.6-sol through the server-side OpenAI Responses API. GitHub Pages redirects to that
-application; an explicit deterministic fallback remains available at
-https://jiangggqr.github.io/sparring-ai-study-coach/?staticDemo=1 for test and recovery
-use only.
+application.
 
 ## Inspiration
 
@@ -48,16 +46,14 @@ practice evidence without claiming permanent mastery.
 - static semantic HTML, CSS, and JavaScript
 - OpenAI Responses API with Pydantic Structured Outputs
 - pypdf for in-memory PDF text extraction
-- PDF.js for browser extraction and the explicit GitHub Pages fallback
+- PDF.js for in-browser text-layer extraction and recovery
 - Tesseract.js for private, in-browser English and Simplified Chinese scanned-page OCR
 - SQLite for observation-only practice evidence
 - localStorage and a service worker for precise resume and recovery
 - Docker and Render deployment configuration
 
 Model credentials remain on the FastAPI server. Generated source anchors are verified
-against the learner's supplied material before they reach the UI. The explicit Pages
-fallback uses a separate deterministic browser engine and is clearly separated from the
-official real-model demo.
+against the learner's supplied material before they reach the UI.
 
 ## Challenges
 
@@ -112,7 +108,7 @@ teach-back feedback, and constructs source-preserving cold variants.
 ### Technical execution
 
 The demonstrated path is functional, source-checked, keyboard-operable, refresh-resumable,
-and covered by deterministic tests. API keys remain server-side and PDF files are processed
+and covered by automated tests. API keys remain server-side and PDF files are processed
 in memory.
 
 ### Pitch and demo

@@ -41,16 +41,15 @@ The 1-3-7 schedule is an implementation heuristic, not a universal optimum.
 - OCR runs one page at a time, shows page-level progress, can be cancelled, and reports
   partial results and low-confidence pages without erasing existing work.
 - In the FastAPI build, text-layer PDF bytes are processed in server memory and are not
-  written to disk; image-only PDFs use the same browser OCR fallback.
+  written to disk; image-only PDFs are handled by browser OCR.
 - The prototype uses at most the first 24,000 extracted characters and reports
   truncation clearly.
 - Password-protected PDFs require an unlocked copy. Very low-resolution scans may still
   need a clearer export, and OCR text remains editable before practice begins.
 
 In the live FastAPI build, extracted text is sent to the configured OpenAI model when AI
-steps run. The explicit GitHub Pages fallback keeps extraction local and uses deterministic
-practice fixtures. Browser progress, including extracted text, is saved in localStorage
-on that device.
+steps run. Browser progress, including extracted text, is saved in localStorage on that
+device.
 
 ## Run locally
 
@@ -73,9 +72,9 @@ This command starts a local development server on port 8100. It is available onl
 the computer running it; judges and other visitors should use the public live demo linked
 at the top of this README.
 
-### Deterministic demo mode
+### Test fixture mode
 
-Automated tests and offline judging rehearsals use deterministic fixtures:
+Automated tests use reproducible fixtures:
 
 ```bash
 SPARRING_MODE=fixture uvicorn app.main:app --port 8100
@@ -85,21 +84,14 @@ Fixture mode and real-model execution are separate code paths. A real-model fail
 never silently replaced with a fixture response, and there is no evaluator switch or
 mode badge in the learner UI.
 
-### Live AI demo and deterministic fallback
+### Live AI demo
 
 The official live demo runs the FastAPI application and uses GPT-5.6-sol through the
 server-side OpenAI Responses API:
 
 https://sparring-ai-study-coach.onrender.com/
 
-GitHub Pages now redirects to that live AI application. A deterministic browser-only
-fallback remains available explicitly at:
-
-https://jiangggqr.github.io/sparring-ai-study-coach/?staticDemo=1
-
-The fallback uses the same interaction flow without a model key. PDF extraction,
-scanned-page OCR, practice generation, and practice state remain on that device. It is
-for deterministic fallback and test use, not the official AI demo.
+GitHub Pages redirects visitors to this same live AI application.
 
 ## AI boundary
 
@@ -167,10 +159,7 @@ The official public, no-sign-in FastAPI and GPT-5.6-sol demo is:
 
 https://sparring-ai-study-coach.onrender.com/
 
-The GitHub Pages root redirects to the live AI demo. For an explicitly selected
-deterministic fallback, use:
-
-https://jiangggqr.github.io/sparring-ai-study-coach/?staticDemo=1
+The GitHub Pages root redirects to the live AI demo.
 
 ### FastAPI deployment
 
