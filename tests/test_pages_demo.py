@@ -117,11 +117,32 @@ process.stdout.write(JSON.stringify({ plan, lesson, listed, linked, cold }));
 
 def test_service_worker_uses_its_pages_scope():
     worker = (ROOT / "static" / "sw.js").read_text()
-    assert '"sparring-shell-v5"' in worker
+    assert '"sparring-shell-v6"' in worker
     assert 'new URL("./", self.registration.scope)' in worker
     assert 'caches.match(ROOT_URL)' in worker
     assert '"/index.html"' not in worker
     assert '"/app.js"' not in worker
+
+
+def test_scanned_pdf_ocr_runtime_is_self_hosted_and_lazy():
+    engine = (ROOT / "static" / "demo-engine.mjs").read_text()
+    vendor = ROOT / "static" / "vendor" / "tesseract"
+
+    assert 'import("./vendor/tesseract/tesseract.esm.min.js")' in engine
+    assert 'const OCR_LANGUAGES = ["eng", "chi_sim"]' in engine
+    assert "tesseract.createWorker(" in engine
+    assert 'workerBlobURL: false' in engine
+    assert "cdn.jsdelivr.net" not in engine
+    assert "ocr_pages:" in engine
+    assert (vendor / "tesseract.esm.min.js").is_file()
+    assert (vendor / "worker.min.js").is_file()
+    assert (vendor / "core" / "tesseract-core-lstm.wasm.js").is_file()
+    assert (vendor / "core" / "tesseract-core-simd-lstm.wasm.js").is_file()
+    assert (
+        vendor / "core" / "tesseract-core-relaxedsimd-lstm.wasm.js"
+    ).is_file()
+    assert (vendor / "tessdata" / "eng.traineddata.gz").is_file()
+    assert (vendor / "tessdata" / "chi_sim.traineddata.gz").is_file()
 
 
 def test_browser_pdf_adapter_extracts_text(tmp_path: Path):

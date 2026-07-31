@@ -448,6 +448,60 @@ textarea::placeholder {
   margin: 7px 2px 0;
 }
 
+.pdf-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 14px;
+  align-items: center;
+  margin-top: 10px;
+  padding: 13px;
+  background: var(--blue-soft);
+  border: 1px solid #b9cfdf;
+  border-radius: 10px;
+}
+
+.pdf-progress[hidden] {
+  display: none;
+}
+
+.pdf-progress-copy {
+  min-width: 0;
+}
+
+.pdf-progress-copy strong,
+.pdf-progress-copy span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.pdf-progress-copy span {
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.pdf-progress-meter {
+  grid-column: 1 / -1;
+  height: 7px;
+  overflow: hidden;
+  background: #d3dfe7;
+  border-radius: 999px;
+}
+
+.pdf-progress-meter span {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--blue);
+  border-radius: inherit;
+  transition: width 180ms ease;
+}
+
+.pdf-progress .text-button {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
 .source-editor {
   margin-top: 14px;
   border: 1px solid var(--line);
@@ -943,6 +997,19 @@ legend {
 }
 
 .error-panel p {
+  margin-bottom: 10px;
+}
+
+.cancelled-panel {
+  margin-top: 18px;
+  padding: 18px;
+  color: #173951;
+  background: var(--blue-soft);
+  border: 1px solid #b9cfdf;
+  border-radius: var(--radius-md);
+}
+
+.cancelled-panel p {
   margin-bottom: 10px;
 }
 

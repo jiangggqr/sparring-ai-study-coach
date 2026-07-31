@@ -10,8 +10,10 @@ app advances.
 
 ```mermaid
 flowchart LR
-    A["PDF upload or pasted text"] --> B["FastAPI validation"]
-    B --> C["In-memory PDF extraction"]
+    A["PDF upload or pasted text"] --> B["PDF.js page inspection"]
+    B -->|"selectable text"| C["Page text"]
+    B -->|"scanned page"| O["Tesseract.js OCR in browser"]
+    O --> C
     C --> D["Three-concept plan"]
     D --> E["Prediction"]
     E --> F["Explanation + 3 questions"]
@@ -22,10 +24,10 @@ flowchart LR
 ```
 
 The public GitHub Pages build is a judge-friendly adapter for the same interface. It
-uses deterministic browser fixtures and a vendored Apache-2.0 PDF.js parser, so it can
-be tried without distributing a model key. In that hosted build, both PDF extraction
-and practice generation stay on the device. The FastAPI path remains the real-model
-implementation and never silently falls back to fixtures.
+uses deterministic browser fixtures, vendored PDF.js, and a lazy vendored Tesseract.js
+OCR fallback, so it can be tried without distributing a model key. PDF bytes, rendered
+pages, extracted text, and practice generation stay on the device. The FastAPI path
+remains the real-model implementation and never silently falls back to fixtures.
 
 ## Structured output contracts
 
@@ -56,9 +58,17 @@ same wording, change the item type, or change the source anchor.
 If extracted text exceeds the 24,000-character learning-material cap, the API truncates
 it and returns an explicit warning.
 
-The hosted Pages adapter applies the same 20 MB, 80-page, text-only, page-marker, and
-24,000-character limits in the browser. PDF.js and its worker are served from the same
-origin; no third-party CDN receives the document.
+The hosted Pages adapter applies the same 20 MB, 80-page, page-marker, and
+24,000-character limits in the browser. It first uses the PDF text layer. A page with
+fewer than 20 selectable characters is rendered to a memory-bounded canvas and passed
+to one reusable Tesseract.js worker with English and Simplified Chinese data. Pages are
+processed sequentially, the UI shows progress and cancellation, and successful text is
+kept when another page is unreadable.
+
+PDF.js, Tesseract.js, the compatible WASM core variants, and language data are pinned
+and served from the same origin. The browser chooses the compatible core lazily; no
+third-party CDN receives the document or a rendered page. The first OCR run downloads
+the local OCR runtime, after which browser caches can reuse it.
 
 ## State and evidence
 
@@ -88,7 +98,9 @@ silently convert to `null` without an explicit status.
 | Model timeout | Retry the same saved step |
 | Invalid structured output | Incomplete-step error; no partial model text shown |
 | Unverified source anchor | Response rejected and retry offered |
-| Encrypted/scanned PDF | Export searchable copy or paste text |
+| Password-protected PDF | Upload an unlocked copy; existing work remains |
+| Unclear scanned page | Keep readable pages, identify skipped pages, and request a clearer scan |
+| Long scanned PDF | Show page/OCR progress and provide an explicit cancel action |
 | Offline during generated step | Draft retained; retry after connection |
 | Evidence sync failure | Learning continues; event remains queued locally |
 | Corrupt localStorage | Damaged state set aside; safe fresh session opens |

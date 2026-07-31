@@ -29,12 +29,14 @@ copy.
 
 ### 0:11-0:23 - Upload and plan
 
-**Picture:** Upload a text-based PDF. Show the three-concept map and observable target.
+**Picture:** Upload a scanned PDF. Briefly show private OCR progress, then the PDF-ready
+state, three-concept map, and observable target.
 
 **Voice:**
 
-> Sparring changes that contract. I upload the PDF I actually need to study, and the AI
-> turns only that material into three concepts and one clear target.
+> Sparring changes that contract. I upload the PDF I actually need to study—even a
+> scanned copy—and it reads the page privately, then turns only that material into three
+> concepts and one clear target.
 
 ### 0:23-0:39 - Prediction and explanation
 

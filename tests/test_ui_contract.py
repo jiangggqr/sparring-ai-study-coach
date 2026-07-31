@@ -16,7 +16,10 @@ def test_accessible_shell_contract():
     assert "forced-colors" in CSS
     assert 'id="pdf-upload"' in JS
     assert 'accept=".pdf,application/pdf"' in JS
-    assert "PDF files are read in server memory and not stored" in JS
+    assert "Text-based PDFs are read in server memory" in JS
+    assert 'id="pdf-progress-meter"' in JS
+    assert 'role="progressbar"' in JS
+    assert 'id="cancel-pdf"' in JS
 
 
 def test_answer_and_confidence_require_explicit_radio_choices():
@@ -38,14 +41,15 @@ def test_recovery_and_offline_contract():
 
 def test_hosted_demo_keeps_files_local_and_uses_relative_assets():
     assert 'window.location.hostname.endsWith(".github.io")' in JS
-    assert 'import("./demo-engine.mjs?v=5")' in JS
-    assert "your PDF is read in this browser and is not uploaded" in JS
+    assert 'import("./demo-engine.mjs?v=6")' in JS
+    assert "is read in this browser and is not uploaded" in JS
     assert 'href="/' not in HTML
     assert 'src="/' not in HTML
     assert (ROOT / "static" / "demo-engine.mjs").exists()
     assert (ROOT / "static" / "vendor" / "pdf.mjs").exists()
     assert (ROOT / "static" / "vendor" / "pdf.worker.mjs").exists()
     assert (ROOT / "static" / "vendor" / "PDFJS_LICENSE").exists()
+    assert "'wasm-unsafe-eval'" in HTML
 
 
 def test_pdf_ready_state_does_not_require_a_second_paste():
@@ -55,6 +59,9 @@ def test_pdf_ready_state_does_not_require_a_second_paste():
     assert 'minlength="200"' not in JS
     assert "Paste at least 200 characters" not in JS
     assert "const MIN_MATERIAL_CHARS = 40" in JS
+    assert "Text or scanned PDF" in JS
+    assert "We couldn’t read this PDF yet." in JS
+    assert "This PDF wasn’t added." not in JS
 
 
 def test_readme_uses_public_demo_as_the_judge_link():

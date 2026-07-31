@@ -6,7 +6,7 @@ const DAY_MS = 86_400_000;
 const REVIEW_DAYS = [1, 3, 7];
 const LETTERS = ["A", "B", "C", "D"];
 const MIN_MATERIAL_CHARS = 40;
-const PDF_EXTRACTION_TIMEOUT_MS = 90_000;
+const PDF_EXTRACTION_TIMEOUT_MS = 30 * 60_000;
 const HOSTED_DEMO =
   window.location.hostname.endsWith(".github.io") ||
   new URLSearchParams(window.location.search).has("staticDemo");
@@ -14,7 +14,7 @@ const HOSTED_DEMO =
 let demoEnginePromise = null;
 
 function demoEngine() {
-  if (!demoEnginePromise) demoEnginePromise = import("./demo-engine.mjs?v=5");
+  if (!demoEnginePromise) demoEnginePromise = import("./demo-engine.mjs?v=6");
   return demoEnginePromise;
 }
 
@@ -281,7 +281,7 @@ async function api(path, body, timeoutMs = 70_000) {
   }
 }
 
-async function uploadPdf(file, { signal } = {}) {
+async function uploadPdf(file, { signal, onProgress } = {}) {
   if (!file || (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf")) {
     throw new ApiError("Choose a PDF file.", { code: "not_a_pdf", retryable: false });
   }
@@ -293,7 +293,7 @@ async function uploadPdf(file, { signal } = {}) {
   }
   if (HOSTED_DEMO) {
     const engine = await demoEngine();
-    return engine.extractPdfInBrowser(file, { signal });
+    return engine.extractPdfInBrowser(file, { signal, onProgress });
   }
   if (!navigator.onLine) {
     throw new ApiError(
@@ -308,7 +308,9 @@ async function uploadPdf(file, { signal } = {}) {
   signal?.addEventListener("abort", abortFromCaller, { once: true });
   const formData = new FormData();
   formData.append("file", file, file.name);
+  let useBrowserOcr = false;
   try {
+    onProgress?.({ phase: "opening", progress: 0 });
     const response = await fetch("/api/extract/pdf", {
       method: "POST",
       body: formData,
@@ -316,15 +318,21 @@ async function uploadPdf(file, { signal } = {}) {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new ApiError(payload.detail || "The PDF could not be extracted.", {
-        code: payload.code,
-        retryable: payload.retryable,
-        status: response.status,
-      });
+      if (payload.code === "pdf_has_no_text") {
+        useBrowserOcr = true;
+      } else {
+        throw new ApiError(payload.detail || "The PDF could not be extracted.", {
+          code: payload.code,
+          retryable: payload.retryable,
+          status: response.status,
+        });
+      }
+    } else {
+      return payload;
     }
-    return payload;
   } catch (error) {
     if (error.name === "AbortError") {
+      if (signal?.aborted) throw error;
       throw new ApiError("PDF extraction took too long. Try a smaller chapter or section.", {
         retryable: false,
       });
@@ -337,6 +345,11 @@ async function uploadPdf(file, { signal } = {}) {
     window.clearTimeout(timeout);
     signal?.removeEventListener("abort", abortFromCaller);
   }
+  if (useBrowserOcr) {
+    const engine = await demoEngine();
+    return engine.extractPdfInBrowser(file, { signal, onProgress });
+  }
+  throw new ApiError("The PDF could not be extracted.", { retryable: false });
 }
 
 function setBusy(button, busy, label) {
@@ -395,10 +408,55 @@ function updateConnectivity() {
   }
 }
 
+function updatePdfProgress(progress) {
+  const panel = document.getElementById("pdf-progress");
+  const title = document.getElementById("pdf-progress-title");
+  const detail = document.getElementById("pdf-progress-detail");
+  const meter = document.getElementById("pdf-progress-meter");
+  const fill = document.getElementById("pdf-progress-fill");
+  if (!panel || !title || !detail || !meter || !fill) return;
+
+  panel.hidden = false;
+  let titleText = "Opening your PDF";
+  let detailText = "Checking the file before reading its pages.";
+  let normalizedProgress = Math.max(0, Math.min(1, Number(progress?.progress) || 0));
+
+  if (progress?.phase === "reading") {
+    titleText = "Reading your PDF";
+    detailText = `Checking page ${progress.page} of ${progress.totalPages} for text.`;
+    normalizedProgress = 0.05 + normalizedProgress * 0.25;
+  } else if (progress?.phase === "ocr_loading") {
+    titleText = "Preparing private text recognition";
+    detailText =
+      "Scanned pages were found. Loading English and Chinese OCR in this browser.";
+    normalizedProgress = 0.3 + normalizedProgress * 0.08;
+  } else if (progress?.phase === "ocr") {
+    titleText = `Reading scanned page ${progress.ocrPageIndex} of ${progress.ocrPageCount}`;
+    detailText = `Processing PDF page ${progress.page} in this browser. Keep this tab open.`;
+    normalizedProgress = 0.38 + normalizedProgress * 0.57;
+  } else if (progress?.phase === "complete") {
+    titleText = "Finishing your PDF";
+    detailText = "The extracted text is ready to save on this device.";
+    normalizedProgress = 1;
+  }
+
+  title.textContent = titleText;
+  detail.textContent = detailText;
+  const percent = Math.round(normalizedProgress * 100);
+  meter.setAttribute("aria-valuenow", String(percent));
+  meter.setAttribute("aria-valuetext", `${titleText}, ${percent}%`);
+  fill.style.width = `${percent}%`;
+
+  if (panel.dataset.lastAnnouncement !== titleText) {
+    panel.dataset.lastAnnouncement = titleText;
+    announce(titleText);
+  }
+}
+
 function renderHome(error = null) {
   const trustMessage = HOSTED_DEMO
-    ? "In this hosted demo, your PDF is read in this browser and is not uploaded. Extracted text and draft progress stay on this device."
-    : "PDF files are read in server memory and not stored. Extracted text is sent to the configured AI service; draft progress stays in this browser.";
+    ? "In this hosted demo, your PDF—including OCR for scanned pages—is read in this browser and is not uploaded. Extracted text and draft progress stay on this device."
+    : "Text-based PDFs are read in server memory; scanned-page OCR runs in this browser. Files are not stored. Extracted text is sent to the configured AI service.";
   const hasPdfSource = state.source?.type === "pdf";
   const sourceSummary =
     hasPdfSource
@@ -407,7 +465,7 @@ function renderHome(error = null) {
           <div>
             <span class="source-ready">✓ PDF ready</span>
             <strong>${esc(state.source.filename)}</strong>
-            <span>${state.source.extractedPages ?? state.source.pageCount} of ${state.source.pageCount} pages contained text · ${state.material.length.toLocaleString()} extracted characters${state.source.edited ? " · edited" : ""}</span>
+            <span>${state.source.extractedPages ?? state.source.pageCount} of ${state.source.pageCount} pages read · ${state.material.length.toLocaleString()} extracted characters${state.source.ocrPages ? ` · OCR on ${state.source.ocrPages} scanned page(s)` : ""}${state.source.edited ? " · edited" : ""}</span>
           </div>
           <button id="remove-source" class="text-button" type="button">Remove</button>
         </div>
@@ -486,10 +544,28 @@ function renderHome(error = null) {
               <span class="upload-icon" aria-hidden="true">↑</span>
               <span>
                 <strong>Upload your PDF</strong>
-                <small>Text-based PDF · up to 20 MB and 80 pages</small>
+                <small>Text or scanned PDF · up to 20 MB and 80 pages</small>
               </span>
             </label>
             ${sourceSummary}
+            <div id="pdf-progress" class="pdf-progress" role="status" aria-live="polite" hidden>
+              <div class="pdf-progress-copy">
+                <strong id="pdf-progress-title">Opening your PDF</strong>
+                <span id="pdf-progress-detail">Checking the file before reading its pages.</span>
+              </div>
+              <div
+                id="pdf-progress-meter"
+                class="pdf-progress-meter"
+                role="progressbar"
+                aria-label="PDF reading progress"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+              >
+                <span id="pdf-progress-fill"></span>
+              </div>
+              <button id="cancel-pdf" class="text-button" type="button">Cancel PDF reading</button>
+            </div>
           </div>
           ${materialEditor}
           <div class="button-row">
@@ -499,11 +575,16 @@ function renderHome(error = null) {
           ${recoveryNotice ? `<div class="error-panel" role="status"><p>${esc(recoveryNotice)}</p></div>` : ""}
           ${
             error
-              ? error.context === "pdf"
+              ? error.context === "pdf_cancelled"
+                ? `<div class="cancelled-panel" role="status" tabindex="-1">
+                    <p><strong>PDF reading was cancelled.</strong></p>
+                    <p>Your existing material and progress are still saved. Choose a PDF whenever you’re ready.</p>
+                  </div>`
+                : error.context === "pdf"
                 ? `<div class="error-panel" role="alert" tabindex="-1">
-                    <p><strong>This PDF wasn’t added.</strong></p>
+                    <p><strong>We couldn’t read this PDF yet.</strong></p>
                     <p>${esc(error.message || "Choose another PDF and try again.")}</p>
-                    <p>Your existing material and progress are still saved. Choose a PDF above to try again.</p>
+                    <p>Your existing material and progress are still saved. Choose the PDF above to retry.</p>
                   </div>`
                 : errorPanel(error)
               : ""
@@ -537,39 +618,69 @@ function renderHome(error = null) {
     const file = event.target.files?.[0];
     if (!file) return;
     event.target.disabled = true;
+    document.getElementById("material-form")?.setAttribute("aria-busy", "true");
     const buildButton = document.getElementById("build-plan");
-    setBusy(buildButton, true, "Extracting your PDF…");
-    announce(`Extracting text from ${file.name}.`);
+    const sampleButton = document.getElementById("use-sample");
+    if (sampleButton) sampleButton.disabled = true;
+    setBusy(buildButton, true, "Reading your PDF…");
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), PDF_EXTRACTION_TIMEOUT_MS);
+    let cancelReason = null;
+    document.getElementById("cancel-pdf")?.addEventListener(
+      "click",
+      () => {
+        cancelReason = "user";
+        controller.abort();
+        announce("Cancelling PDF reading.");
+      },
+      { once: true },
+    );
+    updatePdfProgress({ phase: "opening", progress: 0 });
+    const timeout = window.setTimeout(() => {
+      cancelReason = "timeout";
+      controller.abort();
+    }, PDF_EXTRACTION_TIMEOUT_MS);
     try {
-      const result = await uploadPdf(file, { signal: controller.signal });
+      const result = await uploadPdf(file, {
+        signal: controller.signal,
+        onProgress: updatePdfProgress,
+      });
       state.material = result.text;
       state.source = {
         type: "pdf",
         filename: result.filename,
         pageCount: result.page_count,
         extractedPages: result.extracted_pages,
+        ocrPages: result.ocr_pages || 0,
         truncated: result.truncated,
         warnings: result.warnings,
         edited: false,
       };
       saveState("PDF extracted and saved");
       announce(
-        `${result.filename} extracted: ${result.extracted_pages} of ${result.page_count} pages contained text.`,
+        `${result.filename} is ready: ${result.extracted_pages} of ${result.page_count} pages read${result.ocr_pages ? `, including ${result.ocr_pages} scanned page(s)` : ""}.`,
       );
       renderHome();
       document.getElementById("build-plan")?.focus();
     } catch (uploadError) {
       if (uploadError.name === "AbortError") {
-        uploadError = new ApiError(
-          "PDF extraction took too long. Try a smaller chapter or a searchable copy.",
-          { code: "pdf_timeout", retryable: false },
-        );
+        if (cancelReason === "user") {
+          uploadError = new ApiError("No changes were made.", {
+            code: "pdf_cancelled",
+            retryable: false,
+          });
+          uploadError.context = "pdf_cancelled";
+        } else {
+          uploadError = new ApiError(
+            "PDF reading did not finish within 30 minutes. Your existing material is still saved; try a shorter section.",
+            { code: "pdf_timeout", retryable: false },
+          );
+          uploadError.context = "pdf";
+        }
+      } else {
+        uploadError.context = "pdf";
       }
-      uploadError.context = "pdf";
       renderHome(uploadError);
-      document.querySelector(".error-panel")?.focus();
+      document.querySelector(".error-panel, .cancelled-panel")?.focus();
     } finally {
       window.clearTimeout(timeout);
     }
@@ -596,8 +707,8 @@ function renderHome(error = null) {
     if (state.material.length < MIN_MATERIAL_CHARS) {
       const materialError = document.getElementById("material-error");
       const message = hasPdfSource
-        ? `This PDF contains only ${state.material.length} readable characters. Use a PDF with at least one complete sentence (${MIN_MATERIAL_CHARS} characters), or edit the extracted text.`
-        : `Add at least one complete sentence (${MIN_MATERIAL_CHARS} characters), or upload a readable PDF.`;
+        ? `This PDF contains only ${state.material.length} readable characters. Use a clearer PDF with at least one complete sentence (${MIN_MATERIAL_CHARS} characters), or edit the extracted text.`
+        : `Add at least one complete sentence (${MIN_MATERIAL_CHARS} characters), or upload a PDF.`;
       if (materialError) {
         materialError.textContent = message;
         materialError.hidden = false;

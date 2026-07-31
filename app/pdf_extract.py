@@ -68,7 +68,7 @@ def extract_pdf_material(
         raise PDFExtractionError(
             code="unreadable_pdf",
             public_message=(
-                "Sparring could not read this PDF. Try exporting a fresh text-based copy."
+                "Sparring could not open this PDF. Try exporting a fresh copy."
             ),
         ) from exc
 
@@ -125,8 +125,8 @@ def extract_pdf_material(
             code="pdf_has_no_text",
             public_message=(
                 "This PDF does not contain one complete sentence of selectable text. "
-                f"Use a searchable/OCR copy with at least {settings.pdf_min_extracted_chars} "
-                "characters, or paste the text instead."
+                "The web app can continue with private browser OCR; if recognition cannot "
+                "read it, use a clearer or higher-resolution copy."
             ),
         )
 

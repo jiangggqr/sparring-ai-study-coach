@@ -15,7 +15,7 @@ judgment, and explanation.
 
 ## What the prototype does
 
-1. Upload a text-based PDF or paste a passage.
+1. Upload a text-based or scanned PDF, or paste a passage.
 2. Generate exactly three source-grounded concepts and one observable session target.
 3. Make a low-stakes prediction before the explanation.
 4. Read one focused explanation and compare it with the prediction.
@@ -31,18 +31,21 @@ The 1-3-7 schedule is an implementation heuristic, not a universal optimum.
 
 ## PDF support
 
-- Text-based PDFs up to 20 MB and 80 pages.
+- Text-based and scanned/image-only PDFs up to 20 MB and 80 pages.
 - One complete sentence (40 readable characters) is enough to begin; there is no
   200-character paste requirement after a PDF is ready.
 - Page markers are retained in the extracted study text.
-- In the hosted demo, PDF.js extracts text locally in the browser and the file is not
-  uploaded.
-- In the FastAPI build, PDF bytes are processed in server memory and are not written to
-  disk.
+- In the hosted demo, PDF.js reads each page locally. Pages without enough selectable
+  text automatically fall back to self-hosted Tesseract.js OCR in English and Simplified
+  Chinese. The file and rendered pages are never uploaded.
+- OCR runs one page at a time, shows page-level progress, can be cancelled, and reports
+  partial results and low-confidence pages without erasing existing work.
+- In the FastAPI build, text-layer PDF bytes are processed in server memory and are not
+  written to disk; image-only PDFs use the same browser OCR fallback.
 - The prototype uses at most the first 24,000 extracted characters and reports
   truncation clearly.
-- Scanned/image-only and password-protected PDFs are not silently accepted. The UI asks
-  for an OCR/searchable copy or pasted text.
+- Password-protected PDFs require an unlocked copy. Very low-resolution scans may still
+  need a clearer export, and OCR text remains editable before practice begins.
 
 In the FastAPI build, extracted text is sent to the configured OpenAI model when AI
 steps run. In the hosted demo it remains local and uses deterministic practice fixtures.
@@ -84,10 +87,10 @@ mode badge in the learner UI.
 ### Hosted demo
 
 The GitHub Pages demo uses the same interaction flow with a deterministic in-browser
-practice engine, so judges can try it without a shared API key. PDF text extraction and
-practice state stay on that device in the hosted demo. The FastAPI application is the
-real-model path and uses server-side OpenAI Structured Outputs when configured locally
-or on a container host.
+practice engine, so judges can try it without a shared API key. PDF text extraction,
+scanned-page OCR, and practice state stay on that device in the hosted demo. The FastAPI
+application is the real-model path and uses server-side OpenAI Structured Outputs when
+configured locally or on a container host.
 
 ## AI boundary
 
@@ -109,9 +112,11 @@ generative system is infallible.
 
 ```text
 Static HTML/CSS/JS
-        |
-        | same-origin JSON / multipart requests
-        v
+  |- PDF.js text extraction
+  |- Tesseract.js scanned-page OCR (browser only)
+  `- same-origin JSON / multipart requests
+                     |
+                     v
 FastAPI
   |- in-memory PDF text extraction (pypdf)
   |- source-anchor validation
@@ -139,9 +144,11 @@ node --check static/sw.js
 ```
 
 The current suite covers API schemas, source anchoring, material limits, PDF extraction
-and failure cases, teach-back revision, cold-review drift checks, privacy-minimized
-evidence, missing-key behavior, security headers, accessibility contracts, autosave,
-offline shell caching, and completion-state persistence.
+and failure cases, the self-hosted OCR contract, teach-back revision, cold-review drift
+checks, privacy-minimized evidence, missing-key behavior, security headers, accessibility
+contracts, autosave, offline shell caching, and completion-state persistence. Real-browser
+rehearsals cover English scans, Simplified Chinese scans, mixed text/scanned PDFs,
+cancellation recovery, and 390 px mobile reflow.
 
 ## Deploy
 
@@ -151,8 +158,8 @@ The public, no-sign-in demo is:
 
 https://jiangggqr.github.io/sparring-ai-study-coach/
 
-It extracts PDF text locally and uses deterministic in-browser practice responses so
-judges can complete the flow without a shared API key.
+It extracts PDF text and recognizes scanned pages locally, then uses deterministic
+in-browser practice responses so judges can complete the flow without a shared API key.
 
 ### FastAPI real-model deployment
 
@@ -169,10 +176,11 @@ evidence.
 
 ## Known limitations
 
-- No OCR for scanned PDFs.
 - No account or cross-device sync.
-- No PDF layout, image, chart, or equation understanding; this prototype uses extracted
-  text.
+- OCR supports English and Simplified Chinese prose, but complex tables, equations,
+  handwriting, vertical text, and low-resolution scans may be inaccurate.
+- The learning engine uses extracted text; it does not reason directly over PDF layout,
+  charts, or images.
 - No notification delivery; reviews become due when the learner reopens the app.
 - The browser can inspect client-delivered quiz answer data, so this is low-stakes
   practice rather than secure assessment.
@@ -188,6 +196,10 @@ repository, and a demo video no longer than two minutes.
 
 Submission assets, the natural English voiceover, and burn-in subtitle file are in
 [`submission/`](submission/).
+
+PDF.js and Tesseract.js are Apache-2.0. The pinned English and Simplified Chinese
+language-data packages declare MIT. Vendored versions, checksums, and notices are in
+[`static/vendor/`](static/vendor/).
 
 ## License
 

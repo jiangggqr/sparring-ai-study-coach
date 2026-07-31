@@ -14,9 +14,10 @@ learning action with the learner.
 
 **Source code:** https://github.com/jiangggqr/sparring-ai-study-coach
 
-The public GitHub Pages demo extracts PDF text locally and uses deterministic in-browser
-practice responses so judges can complete the full interaction without a shared API key.
-The FastAPI/OpenAI path is the real-model server build.
+The public GitHub Pages demo extracts PDF text and recognizes scanned pages locally, then
+uses deterministic in-browser practice responses so judges can complete the full
+interaction without a shared API key. The FastAPI/OpenAI path is the real-model server
+build.
 
 ## Inspiration
 
@@ -27,7 +28,7 @@ AI removes the setup work, but not the learning work.
 
 ## What it does
 
-A learner uploads a text-based PDF or pastes a passage. Sparring extracts exactly three
+A learner uploads a text-based or scanned PDF, or pastes a passage. Sparring extracts exactly three
 concepts and one observable target. For each concept, the learner:
 
 1. commits a low-stakes prediction;
@@ -47,6 +48,7 @@ practice evidence without claiming permanent mastery.
 - OpenAI Responses API with Pydantic Structured Outputs
 - pypdf for in-memory PDF text extraction
 - PDF.js for local PDF extraction in the public GitHub Pages demo
+- Tesseract.js for private, in-browser English and Simplified Chinese scanned-page OCR
 - SQLite for observation-only practice evidence
 - localStorage and a service worker for precise resume and recovery
 - Docker and Render deployment configuration
@@ -69,6 +71,7 @@ be verified against the uploaded material.
 ## Accomplishments
 
 - Complete PDF-to-cold-review flow in one responsive page.
+- Automatic scanned-page OCR with visible progress, cancellation, and editable results.
 - Explicit no-default confidence judgment before feedback.
 - Different feedback for high-confidence errors and uncertain answers.
 - Teach-back revision instead of automatically advancing after a weak explanation.
@@ -86,7 +89,6 @@ distinctions changed both the interface and the data model.
 
 ## What's next
 
-- OCR for scanned PDFs.
 - A generated short-answer application item in delayed review.
 - Optional account-based cross-device review sync.
 - A small learner study measuring usability, delayed recall, and confidence-pattern
@@ -125,6 +127,7 @@ Safe claims:
 - "Sparring requires an attempt before feedback."
 - "Learners commit both an answer and a confidence judgment."
 - "PDF text and generated source anchors are checked within the supplied material."
+- "Scanned-page OCR runs locally in the public demo and the PDF is not uploaded."
 - "The prototype creates a default 1-3-7 review schedule."
 - "Teach-back feedback is a heuristic relationship check."
 
@@ -134,6 +137,6 @@ Do not claim:
 - permanent or verified mastery;
 - objective measurement of metacognition or understanding;
 - zero hallucinations;
-- OCR or PDF visual understanding;
+- perfect OCR, handwriting recognition, or PDF visual understanding;
 - full personalization;
 - medical or ADHD outcomes.

@@ -2,6 +2,11 @@ const MAX_PDF_BYTES = 20 * 1024 * 1024;
 const MAX_PDF_PAGES = 80;
 const MAX_MATERIAL_CHARS = 24_000;
 const MIN_MATERIAL_CHARS = 40;
+const MIN_PAGE_TEXT_CHARS = 20;
+const OCR_LANGUAGES = ["eng", "chi_sim"];
+const OCR_RENDER_SCALE = 2;
+const MAX_OCR_CANVAS_PIXELS = 2_400_000;
+const MAX_OCR_CANVAS_EDGE = 2_800;
 const CONNECTORS = [
   " because ",
   " so ",
@@ -265,7 +270,247 @@ function throwIfAborted(signal) {
   if (signal?.aborted) throw abortError();
 }
 
-export async function extractPdfInBrowser(file, { signal } = {}) {
+function reportPdfProgress(onProgress, progress) {
+  if (typeof onProgress !== "function") return;
+  try {
+    onProgress(progress);
+  } catch (_error) {
+    // Progress rendering must never interrupt PDF extraction.
+  }
+}
+
+function normalizePageText(rawText, preserveLines = false) {
+  const text = String(rawText || "").replace(/\u0000/g, "");
+  if (!preserveLines) return text.replace(/\s+/g, " ").trim();
+  return text
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function abortable(promise, signal) {
+  if (!signal) return promise;
+  throwIfAborted(signal);
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(abortError());
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
+function createOcrCanvas() {
+  if (typeof globalThis.OffscreenCanvas === "function") {
+    return new globalThis.OffscreenCanvas(1, 1);
+  }
+  if (globalThis.document?.createElement) {
+    return globalThis.document.createElement("canvas");
+  }
+  throw demoError(
+    "This browser cannot run private text recognition for scanned PDF pages. Update the browser and try again.",
+    "ocr_not_supported",
+  );
+}
+
+function clearOcrCanvas(canvas) {
+  canvas.width = 1;
+  canvas.height = 1;
+}
+
+async function renderPageForOcr(pdfDocument, pageNumber, canvas, signal) {
+  throwIfAborted(signal);
+  const page = await abortable(pdfDocument.getPage(pageNumber), signal);
+  let renderTask = null;
+  const cancelRender = () => renderTask?.cancel();
+  signal?.addEventListener("abort", cancelRender, { once: true });
+  try {
+    const baseViewport = page.getViewport({ scale: 1 });
+    const basePixels = Math.max(1, baseViewport.width * baseViewport.height);
+    const pixelScale = Math.sqrt(MAX_OCR_CANVAS_PIXELS / basePixels);
+    const edgeScale =
+      MAX_OCR_CANVAS_EDGE / Math.max(baseViewport.width, baseViewport.height, 1);
+    const scale = Math.max(0.1, Math.min(OCR_RENDER_SCALE, pixelScale, edgeScale));
+    const viewport = page.getViewport({ scale });
+    canvas.width = Math.max(1, Math.ceil(viewport.width));
+    canvas.height = Math.max(1, Math.ceil(viewport.height));
+    const context = canvas.getContext("2d", {
+      alpha: false,
+      willReadFrequently: true,
+    });
+    if (!context) {
+      throw demoError(
+        "This browser could not prepare the scanned PDF page for text recognition.",
+        "ocr_not_supported",
+      );
+    }
+    context.save();
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.restore();
+    renderTask = page.render({
+      canvasContext: context,
+      viewport,
+      background: "rgb(255, 255, 255)",
+    });
+    await abortable(renderTask.promise, signal);
+    return canvas;
+  } catch (error) {
+    if (signal?.aborted || error?.name === "RenderingCancelledException") {
+      throw abortError();
+    }
+    throw error;
+  } finally {
+    signal?.removeEventListener("abort", cancelRender);
+    page.cleanup();
+  }
+}
+
+async function recognizeScannedPages(
+  pdfDocument,
+  pageRecords,
+  candidatePageNumbers,
+  { signal, onProgress },
+) {
+  if (!candidatePageNumbers.length) {
+    return { ocrPageNumbers: [], lowConfidencePages: [], failedPages: [] };
+  }
+
+  reportPdfProgress(onProgress, {
+    phase: "ocr_loading",
+    totalPages: pdfDocument.numPages,
+    ocrPageCount: candidatePageNumbers.length,
+    progress: 0,
+  });
+  let tesseract;
+  try {
+    const tesseractModule = await import("./vendor/tesseract/tesseract.esm.min.js");
+    tesseract = tesseractModule.default;
+    if (typeof tesseract?.createWorker !== "function") throw new Error("OCR module unavailable");
+  } catch (error) {
+    if (signal?.aborted || error?.name === "AbortError") throw abortError();
+    throw demoError(
+      "Private text recognition files could not load. Check the connection once, then choose the PDF again.",
+      "ocr_load_failed",
+      true,
+    );
+  }
+  throwIfAborted(signal);
+
+  const baseUrl = new URL("./vendor/tesseract/", import.meta.url);
+  const canvas = createOcrCanvas();
+  let worker = null;
+  let activePageNumber = candidatePageNumbers[0];
+  let activeOcrIndex = 0;
+  const workerPromise = tesseract.createWorker(
+    OCR_LANGUAGES,
+    tesseract.OEM?.LSTM_ONLY ?? 1,
+    {
+      workerPath: new URL("worker.min.js", baseUrl).href,
+      corePath: new URL("core/", baseUrl).href,
+      langPath: new URL("tessdata", baseUrl).href,
+      workerBlobURL: false,
+      logger: (message) => {
+        const workerProgress = Number.isFinite(message?.progress)
+          ? Math.max(0, Math.min(1, message.progress))
+          : 0;
+        reportPdfProgress(onProgress, {
+          phase: message?.status === "recognizing text" ? "ocr" : "ocr_loading",
+          page: activePageNumber,
+          totalPages: pdfDocument.numPages,
+          ocrPageIndex: activeOcrIndex,
+          ocrPageCount: candidatePageNumbers.length,
+          workerProgress,
+          status: message?.status || "",
+          progress:
+            (Math.max(0, activeOcrIndex - 1) + workerProgress) /
+            candidatePageNumbers.length,
+        });
+      },
+    },
+  );
+  const terminateOnAbort = () => {
+    if (worker) void worker.terminate();
+  };
+  signal?.addEventListener("abort", terminateOnAbort, { once: true });
+
+  const ocrPageNumbers = [];
+  const lowConfidencePages = [];
+  const failedPages = [];
+  try {
+    try {
+      worker = await abortable(workerPromise, signal);
+    } catch (error) {
+      if (signal?.aborted || error?.name === "AbortError") {
+        void workerPromise.then((createdWorker) => createdWorker.terminate()).catch(() => {});
+        throw abortError();
+      }
+      throw demoError(
+        "Private text recognition could not start. Check the connection once so the OCR files can load, then choose the PDF again.",
+        "ocr_load_failed",
+        true,
+      );
+    }
+    throwIfAborted(signal);
+    await abortable(
+      worker.setParameters({
+        tessedit_pageseg_mode: "3",
+        preserve_interword_spaces: "1",
+        user_defined_dpi: "144",
+      }),
+      signal,
+    );
+
+    for (let index = 0; index < candidatePageNumbers.length; index += 1) {
+      const pageNumber = candidatePageNumbers[index];
+      activePageNumber = pageNumber;
+      activeOcrIndex = index + 1;
+      reportPdfProgress(onProgress, {
+        phase: "ocr",
+        page: pageNumber,
+        totalPages: pdfDocument.numPages,
+        ocrPageIndex: activeOcrIndex,
+        ocrPageCount: candidatePageNumbers.length,
+        workerProgress: 0,
+        progress: index / candidatePageNumbers.length,
+      });
+      try {
+        await renderPageForOcr(pdfDocument, pageNumber, canvas, signal);
+        const result = await abortable(worker.recognize(canvas), signal);
+        const recognizedText = normalizePageText(result?.data?.text, true);
+        const nativeText = pageRecords.get(pageNumber)?.text || "";
+        if (recognizedText.length > nativeText.length) {
+          pageRecords.set(pageNumber, { text: recognizedText, method: "ocr" });
+          ocrPageNumbers.push(pageNumber);
+          if (Number.isFinite(result?.data?.confidence) && result.data.confidence < 45) {
+            lowConfidencePages.push(pageNumber);
+          }
+        }
+      } catch (error) {
+        if (signal?.aborted || error?.name === "AbortError") throw abortError();
+        failedPages.push(pageNumber);
+      } finally {
+        clearOcrCanvas(canvas);
+      }
+    }
+    return { ocrPageNumbers, lowConfidencePages, failedPages };
+  } finally {
+    signal?.removeEventListener("abort", terminateOnAbort);
+    clearOcrCanvas(canvas);
+    if (worker) await worker.terminate().catch(() => {});
+  }
+}
+
+export async function extractPdfInBrowser(file, { signal, onProgress } = {}) {
   throwIfAborted(signal);
   if (!file || (!file.name.toLowerCase().endsWith(".pdf") && file.type !== "application/pdf")) {
     throw demoError("Choose a PDF file.", "not_a_pdf");
@@ -276,6 +521,10 @@ export async function extractPdfInBrowser(file, { signal } = {}) {
 
   const pdfjs = await import("./vendor/pdf.mjs");
   pdfjs.GlobalWorkerOptions.workerSrc = new URL("./vendor/pdf.worker.mjs", import.meta.url).href;
+  reportPdfProgress(onProgress, {
+    phase: "opening",
+    progress: 0,
+  });
   const data = new Uint8Array(await file.arrayBuffer());
   throwIfAborted(signal);
   if (String.fromCharCode(...data.slice(0, 5)) !== "%PDF-") {
@@ -296,63 +545,96 @@ export async function extractPdfInBrowser(file, { signal } = {}) {
   const abortLoading = () => loadingTask.destroy();
   signal?.addEventListener("abort", abortLoading, { once: true });
 
-  let document;
+  let pdfDocument;
   try {
     try {
-      document = await loadingTask.promise;
+      pdfDocument = await loadingTask.promise;
     } catch (error) {
       if (signal?.aborted) throw abortError();
       if (passwordRequired || error?.name === "PasswordException") {
         throw demoError(
-          "Password-protected PDFs are not supported. Upload an unlocked copy or paste the text.",
+          "Password-protected PDFs are not supported. Upload an unlocked copy.",
           "encrypted_pdf",
         );
       }
       throw demoError(
-        "The PDF could not be read. Try a searchable PDF or paste the relevant text.",
+        "The PDF could not be read. Export a fresh PDF and choose it again.",
         "invalid_pdf",
       );
     }
 
     throwIfAborted(signal);
-    if (document.numPages > MAX_PDF_PAGES) {
+    if (pdfDocument.numPages > MAX_PDF_PAGES) {
       throw demoError("Keep PDF files to 80 pages or fewer.", "pdf_too_many_pages");
     }
-    const pageSections = [];
+    const pageRecords = new Map();
+    const ocrCandidates = [];
     const warnings = [];
-    let extractedPages = 0;
-    let readableCharacters = 0;
-    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+    for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
       throwIfAborted(signal);
+      reportPdfProgress(onProgress, {
+        phase: "reading",
+        page: pageNumber,
+        totalPages: pdfDocument.numPages,
+        progress: (pageNumber - 1) / pdfDocument.numPages,
+      });
+      let page = null;
       try {
-        const page = await document.getPage(pageNumber);
-        const textContent = await page.getTextContent();
-        const text = textContent.items
-          .map((item) => ("str" in item ? item.str : ""))
-          .join(" ")
-          .replace(/\s+/g, " ")
-          .trim();
-        if (text) {
-          extractedPages += 1;
-          readableCharacters += text.length;
-          pageSections.push(`[Page ${pageNumber}]\n${text}`);
-        }
+        page = await abortable(pdfDocument.getPage(pageNumber), signal);
+        const textContent = await abortable(page.getTextContent(), signal);
+        const text = normalizePageText(
+          textContent.items
+            .map((item) => ("str" in item ? item.str : ""))
+            .join(" "),
+        );
+        pageRecords.set(pageNumber, { text, method: "text_layer" });
+        if (text.length < MIN_PAGE_TEXT_CHARS) ocrCandidates.push(pageNumber);
       } catch (_error) {
         if (signal?.aborted) throw abortError();
-        warnings.push(`Page ${pageNumber} could not be read and was skipped.`);
+        pageRecords.set(pageNumber, { text: "", method: "unreadable" });
+        ocrCandidates.push(pageNumber);
+      } finally {
+        page?.cleanup();
       }
     }
 
-    if (!pageSections.length) {
-      throw demoError(
-        "No selectable text was found. Upload an OCR/searchable PDF or paste the relevant text.",
-        "pdf_no_text",
-      );
+    const ocrResult = await recognizeScannedPages(
+      pdfDocument,
+      pageRecords,
+      ocrCandidates,
+      { signal, onProgress },
+    );
+    const pageSections = [];
+    let extractedPages = 0;
+    let readableCharacters = 0;
+    for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
+      const text = pageRecords.get(pageNumber)?.text?.trim() || "";
+      if (!text) continue;
+      extractedPages += 1;
+      readableCharacters += text.length;
+      pageSections.push(`[Page ${pageNumber}]\n${text}`);
     }
+
     if (readableCharacters < MIN_MATERIAL_CHARS) {
       throw demoError(
-        `Only ${readableCharacters} readable characters were found. Upload a PDF with at least one complete sentence (${MIN_MATERIAL_CHARS} characters).`,
+        `Text recognition found only ${readableCharacters} readable characters. Try a clearer or higher-resolution PDF with at least one complete sentence (${MIN_MATERIAL_CHARS} characters).`,
         "pdf_too_little_text",
+      );
+    }
+
+    if (ocrResult.ocrPageNumbers.length) {
+      warnings.push(
+        `OCR read ${ocrResult.ocrPageNumbers.length} scanned page(s). Review the extracted text because image recognition can contain errors.`,
+      );
+    }
+    if (ocrResult.lowConfidencePages.length) {
+      warnings.push(
+        `OCR confidence was low on page(s) ${ocrResult.lowConfidencePages.join(", ")}.`,
+      );
+    }
+    if (ocrResult.failedPages.length) {
+      warnings.push(
+        `Page(s) ${ocrResult.failedPages.join(", ")} could not be recognized and were skipped.`,
       );
     }
 
@@ -365,22 +647,29 @@ export async function extractPdfInBrowser(file, { signal } = {}) {
         "Only the first 24,000 extracted characters are used in this prototype.",
       );
     }
-    if (extractedPages < document.numPages) {
-      warnings.unshift(
-        `${document.numPages - extractedPages} page(s) contained no selectable text.`,
+    if (extractedPages < pdfDocument.numPages) {
+      warnings.push(
+        `${pdfDocument.numPages - extractedPages} page(s) did not contain readable text and were skipped.`,
       );
     }
+    reportPdfProgress(onProgress, {
+      phase: "complete",
+      page: pdfDocument.numPages,
+      totalPages: pdfDocument.numPages,
+      progress: 1,
+    });
     return {
       filename: file.name,
       text,
-      page_count: document.numPages,
+      page_count: pdfDocument.numPages,
       extracted_pages: extractedPages,
+      ocr_pages: ocrResult.ocrPageNumbers.length,
       truncated,
       warnings,
     };
   } finally {
     signal?.removeEventListener("abort", abortLoading);
-    if (typeof document?.cleanup === "function") await document.cleanup();
+    if (typeof pdfDocument?.cleanup === "function") await pdfDocument.cleanup();
     await loadingTask.destroy().catch(() => {});
   }
 }
